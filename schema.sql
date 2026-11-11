@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     client_id INTEGER NOT NULL,
+    client_name TEXT NOT NULL DEFAULT '',
+    client_email TEXT NOT NULL DEFAULT '',
+    client_phone TEXT NOT NULL DEFAULT '',
+    client_company TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'Enviado'
         CHECK (status IN ('Enviado', 'Aprovado', 'Recusado')),
     notes TEXT NOT NULL DEFAULT '',

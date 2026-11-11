@@ -104,8 +104,8 @@ class AuthAndInterfaceTests(unittest.TestCase):
         dashboard = self.client.get("/")
         self.assertEqual(dashboard.status_code, 200)
         body = dashboard.get_data(as_text=True)
-        self.assertIn("Bem-vindo ao seu CRM", body)
-        self.assertIn('aria-disabled="true"', body)
+        self.assertIn("Painel de orçamentos", body)
+        self.assertIn("Novo orçamento", body)
 
         self.assertEqual(self.client.post("/logout").status_code, 400)
         response = self.client.post("/logout", data={

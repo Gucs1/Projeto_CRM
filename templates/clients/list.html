@@ -43,6 +43,7 @@
           <td class="px-5 py-4 text-slate-600">{{ client['email'] or '—' }}</td>
           <td class="px-5 py-4 text-slate-600">{{ client['phone'] or '—' }}</td>
           <td class="px-5 py-4"><div class="flex justify-end gap-2">
+            <a href="{{ url_for('quotes.client_history', client_id=client['id']) }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700">Histórico</a>
             <a href="{{ url_for('clients.edit', client_id=client['id']) }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">Editar</a>
             <form method="post" action="{{ url_for('clients.delete', client_id=client['id']) }}" data-confirm="Excluir {{ client['name'] }}? Esta ação não pode ser desfeita.">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

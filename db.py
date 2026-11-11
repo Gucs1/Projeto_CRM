@@ -30,6 +30,7 @@ def initialize_database(database_path: str | Path, schema_path: str | Path,
     schema = Path(schema_path).read_text(encoding="utf-8")
     with get_connection(database_path) as connection:
         connection.executescript(schema)
+        migrate_quote_client_snapshots(connection)
         existing = connection.execute(
             "SELECT id FROM users WHERE username = ?", (admin_username,)
         ).fetchone()
@@ -37,4 +38,28 @@ def initialize_database(database_path: str | Path, schema_path: str | Path,
             connection.execute(
                 "INSERT INTO users (username, password_hash) VALUES (?, ?)",
                 (admin_username, generate_password_hash(admin_password)),
+            )
+
+
+def migrate_quote_client_snapshots(connection: sqlite3.Connection) -> None:
+    """Adiciona snapshots de cliente a bancos já existentes sem apagar dados."""
+    columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(quotes)")
+    }
+    snapshot_columns = {
+        "client_name": "TEXT NOT NULL DEFAULT ''",
+        "client_email": "TEXT NOT NULL DEFAULT ''",
+        "client_phone": "TEXT NOT NULL DEFAULT ''",
+        "client_company": "TEXT NOT NULL DEFAULT ''",
+    }
+    for name, definition in snapshot_columns.items():
+        if name not in columns:
+            connection.execute(f"ALTER TABLE quotes ADD COLUMN {name} {definition}")
+            client_field = name.removeprefix("client_")
+            connection.execute(
+                f"""UPDATE quotes
+                    SET {name} = COALESCE((
+                        SELECT {client_field} FROM clients
+                        WHERE clients.id = quotes.client_id
+                    ), '')"""
             )

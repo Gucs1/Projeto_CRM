@@ -37,4 +37,67 @@
       if (!window.confirm(form.dataset.confirm)) event.preventDefault();
     });
   });
+
+  const itemContainer = document.getElementById("quote-items");
+  const addItemButton = document.getElementById("add-quote-item");
+  const quoteTotal = document.getElementById("quote-total");
+
+  if (!itemContainer || !addItemButton || !quoteTotal) return;
+
+  const formatCents = (cents) => {
+    const digits = cents.toString().padStart(3, "0");
+    const whole = digits.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return `R$ ${whole},${digits.slice(-2)}`;
+  };
+
+  const updateQuoteTotal = () => {
+    let total = 0n;
+    let invalidQuantity = false;
+    itemContainer.querySelectorAll(".quote-item-row").forEach((row) => {
+      const select = row.querySelector(".quote-product");
+      const quantityInput = row.querySelector(".quote-quantity");
+      const subtotal = row.querySelector(".quote-line-total");
+      const price = select.selectedOptions[0]?.dataset.priceCents || "0";
+      const quantityText = quantityInput.value;
+
+      if (!select.value) {
+        subtotal.textContent = formatCents(0n);
+        return;
+      }
+      if (!/^\d+$/.test(quantityText) || Number(quantityText) < 1 || Number(quantityText) > 1000000) {
+        invalidQuantity = true;
+        subtotal.textContent = "Verifique a quantidade";
+        return;
+      }
+      const lineTotal = BigInt(price) * BigInt(quantityText);
+      total += lineTotal;
+      subtotal.textContent = formatCents(lineTotal);
+    });
+    quoteTotal.textContent = invalidQuantity ? "Verifique as quantidades" : formatCents(total);
+  };
+
+  const addItemRow = () => {
+    const rows = itemContainer.querySelectorAll(".quote-item-row");
+    if (rows.length >= 50) return;
+    const newRow = rows[0].cloneNode(true);
+    newRow.querySelector(".quote-product").value = "";
+    newRow.querySelector(".quote-quantity").value = "1";
+    itemContainer.appendChild(newRow);
+    updateQuoteTotal();
+    newRow.querySelector(".quote-product").focus();
+  };
+
+  addItemButton.addEventListener("click", addItemRow);
+  itemContainer.addEventListener("input", updateQuoteTotal);
+  itemContainer.addEventListener("change", updateQuoteTotal);
+  itemContainer.addEventListener("click", (event) => {
+    const removeButton = event.target.closest(".remove-quote-item");
+    if (!removeButton) return;
+    const row = removeButton.closest(".quote-item-row");
+    if (itemContainer.querySelectorAll(".quote-item-row").length > 1) {
+      row.remove();
+      updateQuoteTotal();
+    }
+  });
+  updateQuoteTotal();
 })();

@@ -97,11 +97,13 @@ def create_app(test_config: dict | None = None) -> Flask:
     from controllers.pages import pages_bp
     from controllers.clients import clients_bp
     from controllers.products import products_bp
+    from controllers.quotes import quotes_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(pages_bp)
     app.register_blueprint(clients_bp)
     app.register_blueprint(products_bp)
+    app.register_blueprint(quotes_bp)
 
     @app.before_request
     def load_logged_in_user() -> None:

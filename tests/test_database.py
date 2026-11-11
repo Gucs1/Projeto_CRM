@@ -55,6 +55,59 @@ class DatabaseInitializationTests(unittest.TestCase):
                 connection.execute(
                     "INSERT INTO quotes (client_id) VALUES (9999)")
 
+    def test_existing_quotes_receive_client_snapshots_once(self):
+        with get_connection(self.database) as connection:
+            connection.executescript("""
+                CREATE TABLE users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE clients (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL DEFAULT '',
+                    phone TEXT NOT NULL DEFAULT '',
+                    company TEXT NOT NULL DEFAULT '',
+                    notes TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE quotes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'Enviado',
+                    notes TEXT NOT NULL DEFAULT '',
+                    total_cents INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT
+                );
+                INSERT INTO clients (name, email, phone, company)
+                VALUES ('Cliente antigo', 'antigo@example.com', '111', 'Empresa antiga');
+                INSERT INTO quotes (client_id, total_cents) VALUES (1, 7250);
+            """)
+
+        initialize_database(self.database, self.schema, "admin", "local-secret")
+        with get_connection(self.database) as connection:
+            quote = connection.execute(
+                "SELECT client_name, client_email, client_phone, client_company FROM quotes WHERE id = 1"
+            ).fetchone()
+            self.assertEqual(tuple(quote), (
+                "Cliente antigo", "antigo@example.com", "111", "Empresa antiga"
+            ))
+            connection.execute(
+                "UPDATE clients SET name = 'Cliente novo', email = 'novo@example.com' WHERE id = 1"
+            )
+
+        initialize_database(self.database, self.schema, "admin", "local-secret")
+        with get_connection(self.database) as connection:
+            quote = connection.execute(
+                "SELECT client_name, client_email FROM quotes WHERE id = 1"
+            ).fetchone()
+            self.assertEqual(tuple(quote), ("Cliente antigo", "antigo@example.com"))
+
 
 if __name__ == "__main__":
     unittest.main()

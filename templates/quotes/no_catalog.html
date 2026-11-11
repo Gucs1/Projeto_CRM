@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Novo orçamento{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white px-6 py-10 text-center shadow-sm sm:px-10">
+  <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600"><svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8v4m0 4h.01"/></svg></span>
+  <h1 class="mt-5 text-2xl font-semibold tracking-tight text-slate-900">Prepare seus cadastros primeiro</h1>
+  <p class="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Para montar um orçamento, cadastre pelo menos um cliente e um produto ou serviço no catálogo.</p>
+  <div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+    {% if not has_clients %}<a href="{{ url_for('clients.create') }}" class="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Cadastrar cliente</a>{% endif %}
+    {% if not has_products %}<a href="{{ url_for('products.create') }}" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cadastrar produto ou serviço</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

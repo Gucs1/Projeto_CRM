@@ -140,7 +140,10 @@ class CatalogCrudTests(unittest.TestCase):
 
     def test_catalog_routes_require_login(self):
         anonymous = self.app.test_client()
-        for path in ("/clients", "/clients/new", "/products", "/products/new"):
+        for path in (
+            "/clients", "/clients/new", "/products", "/products/new",
+            "/quotes", "/quotes/new", "/clients/1/quotes",
+        ):
             with self.subTest(path=path):
                 response = anonymous.get(path)
                 self.assertEqual(response.status_code, 302)
