@@ -1,7 +1,8 @@
 """Criação, visualização, histórico e status de orçamentos."""
 import re
+from io import BytesIO
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 
 from controllers.auth import login_required
 from models.client import list_clients
@@ -16,6 +17,7 @@ from models.quote import (
     list_quotes,
     update_quote_status,
 )
+from pdf.generator import generate_quote_pdf
 
 quotes_bp = Blueprint("quotes", __name__)
 NOTES_LIMIT = 2000
@@ -138,6 +140,35 @@ def detail(quote_id: int):
         items=result["items"],
         statuses=QUOTE_STATUSES,
     )
+
+
+@quotes_bp.get("/quotes/<int:quote_id>/pdf")
+@login_required
+def download_pdf(quote_id: int):
+    result = get_quote(current_app.config["DATABASE_PATH"], quote_id)
+    if result is None:
+        abort(404)
+    company = {
+        "name": current_app.config["COMPANY_NAME"],
+        "email": current_app.config["COMPANY_EMAIL"],
+        "phone": current_app.config["COMPANY_PHONE"],
+        "address": current_app.config["COMPANY_ADDRESS"],
+    }
+    pdf_bytes = generate_quote_pdf(
+        result["quote"],
+        result["items"],
+        company,
+        current_app.config["COMPANY_LOGO"],
+    )
+    response = send_file(
+        BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"orcamento-{quote_id}.pdf",
+        max_age=0,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @quotes_bp.post("/quotes/<int:quote_id>/status")

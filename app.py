@@ -79,6 +79,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         COMPANY_EMAIL=local_config.COMPANY_EMAIL,
         COMPANY_PHONE=local_config.COMPANY_PHONE,
         COMPANY_ADDRESS=local_config.COMPANY_ADDRESS,
+        COMPANY_LOGO=str((BASE_DIR / getattr(local_config, "COMPANY_LOGO", "static/img/logo.png")).resolve()),
         AUTO_OPEN_BROWSER=getattr(local_config, "AUTO_OPEN_BROWSER", True),
         APP_PORT=int(getattr(local_config, "APP_PORT", 5000)),
     )
