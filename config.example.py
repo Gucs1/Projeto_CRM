@@ -9,3 +9,4 @@ COMPANY_PHONE = "(11) 5555-0100"
 COMPANY_ADDRESS = "Rua das Empresas, 100 - São Paulo, SP"
 COMPANY_LOGO = "static/img/logo.png"
 AUTO_OPEN_BROWSER = True
+APP_PORT = 5000

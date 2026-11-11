@@ -1,13 +1,13 @@
 # CRM de Orçamentos e Propostas
 
-Aplicação local em Python/Flask, SQLite, Tailwind CSS e ReportLab. O desenvolvimento é dividido em fases; esta primeira entrega prepara o ambiente e o banco. As telas serão implementadas nas fases seguintes.
+Aplicação local em Python/Flask, SQLite, Tailwind CSS e ReportLab. O projeto é entregue em fases; nesta fase, o login, a sessão e a estrutura responsiva estão disponíveis. Clientes, produtos, orçamentos e PDFs serão habilitados nas fases correspondentes.
 
 ## Requisitos
 
 - Python 3.10 ou superior com `pip`.
 - Git para acompanhar as fases. Git é um programa do sistema e não uma dependência Python.
 
-## Preparar e iniciar a Fase 1
+## Instalação e início
 
 No Windows, abra o PowerShell nesta pasta e execute:
 
@@ -18,10 +18,22 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
-O primeiro início cria `config.py` com chave de sessão e senha aleatórias persistentes, cria o banco `instance/crm.sqlite3` e salva a senha do admin apenas como hash no banco. A senha inicial é exibida no terminal e também fica em `config.py`. Guarde-a em local seguro. A configuração local e o banco são ignorados pelo Git.
+O servidor fica restrito ao próprio computador. Por padrão, o navegador abre a tela de login quando o servidor estiver pronto. Para iniciar sem abrir o navegador, altere `AUTO_OPEN_BROWSER = False` em `config.py`.
 
-As informações da empresa em `config.py` são fictícias e podem ser substituídas. Para executar a validação da Fase 1, use `python -m unittest discover -s tests`.
+No primeiro uso, o sistema cria `config.py` com chave de sessão e senha de administrador aleatórias e persistentes, inicializa o banco `instance/crm.sqlite3` e grava a senha apenas como hash no banco. As credenciais iniciais são usuário `admin` e a senha exibida no terminal durante a configuração inicial, também guardada em `config.py`. Preserve essa configuração para não perder o acesso.
 
-## Fases seguintes
+As informações da empresa em `config.py` são fictícias e podem ser editadas. `config.py`, o banco e o ambiente virtual são ignorados pelo Git.
 
-O login e a interface passam a funcionar após a Fase 2. As funcionalidades de clientes, produtos, orçamentos e PDFs serão entregues nas fases autorizadas correspondentes.
+## Testes
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+## Uso
+
+1. Execute `python app.py` e aguarde a abertura do navegador.
+2. Entre com o usuário e a senha inicial. O menu mostra as áreas que serão habilitadas nas próximas fases.
+3. Para sair, use o botão **Sair** no cabeçalho.
+
+Encerre o servidor com `Ctrl+C` no terminal. Para preservar os dados, mantenha uma cópia da pasta `instance` e do arquivo `config.py` em local privado e seguro.

@@ -1,0 +1,3 @@
+html { scroll-behavior: smooth; }
+body { font-feature-settings: "ss01" on; }
+button, input { -webkit-tap-highlight-color: transparent; }
