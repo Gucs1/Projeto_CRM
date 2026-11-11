@@ -1,0 +1,11 @@
+"""Modelo de configuração local. Copie para config.py e ajuste os valores."""
+SECRET_KEY = "gere-uma-chave-aleatoria-e-mantenha-aqui"
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "gere-uma-senha-forte-e-mantenha-aqui"
+DATABASE_PATH = "instance/crm.sqlite3"
+COMPANY_NAME = "Mainhardt Soluções de Exemplo"
+COMPANY_EMAIL = "contato@exemplo.local"
+COMPANY_PHONE = "(11) 5555-0100"
+COMPANY_ADDRESS = "Rua das Empresas, 100 - São Paulo, SP"
+COMPANY_LOGO = "static/img/logo.png"
+AUTO_OPEN_BROWSER = True
