@@ -41,4 +41,6 @@ python -m unittest discover -s tests -v
 7. Na tela do orçamento, use **Gerar PDF** para baixar `orcamento-[id].pdf`, com dados da empresa e do cliente, itens, total, observações e status.
 8. Para sair, use o botão **Sair** no cabeçalho.
 
+Para incluir dados fictícios de demonstração sem duplicar nem substituir cadastros existentes, execute `python scripts/seed_demo_data.py`. O script cria quatro clientes, seis produtos e quatro orçamentos relacionados.
+
 Encerre o servidor com `Ctrl+C` no terminal. Para preservar os dados, mantenha uma cópia da pasta `instance` e do arquivo `config.py` em local privado e seguro. A interface usa Tailwind via CDN, então a estilização requer conexão com a internet; o banco e a geração de PDF são locais.
