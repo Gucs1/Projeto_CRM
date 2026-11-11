@@ -1,6 +1,6 @@
 # CRM de Orçamentos e Propostas
 
-Aplicação local em Python/Flask, SQLite, Tailwind CSS e ReportLab. O projeto é entregue em fases; nesta fase, o login, a sessão e a estrutura responsiva estão disponíveis. Clientes, produtos, orçamentos e PDFs serão habilitados nas fases correspondentes.
+Aplicação local em Python/Flask, SQLite, Tailwind CSS e ReportLab. O projeto é entregue em fases. Login, clientes e catálogo de produtos/serviços já estão disponíveis; orçamentos e PDFs serão habilitados nas próximas fases.
 
 ## Requisitos
 
@@ -33,7 +33,9 @@ python -m unittest discover -s tests -v
 ## Uso
 
 1. Execute `python app.py` e aguarde a abertura do navegador.
-2. Entre com o usuário e a senha inicial. O menu mostra as áreas que serão habilitadas nas próximas fases.
-3. Para sair, use o botão **Sair** no cabeçalho.
+2. Entre com o usuário e a senha inicial.
+3. Use **Clientes** para cadastrar, pesquisar por nome, editar e excluir contatos. Cadastros associados a orçamentos não podem ser excluídos.
+4. Use **Produtos e serviços** para cadastrar, editar e excluir itens. Informe o preço em reais, usando vírgula ou ponto para os centavos; por exemplo, `125,50` ou `125.50`. Itens associados a orçamentos não podem ser excluídos.
+5. Para sair, use o botão **Sair** no cabeçalho.
 
 Encerre o servidor com `Ctrl+C` no terminal. Para preservar os dados, mantenha uma cópia da pasta `instance` e do arquivo `config.py` em local privado e seguro.

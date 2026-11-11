@@ -31,4 +31,10 @@
   window.addEventListener("resize", () => {
     if (window.innerWidth >= 1024) closeMenu();
   });
+
+  document.querySelectorAll("form[data-confirm]").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+    });
+  });
 })();

@@ -95,9 +95,13 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     from controllers.auth import auth_bp
     from controllers.pages import pages_bp
+    from controllers.clients import clients_bp
+    from controllers.products import products_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(pages_bp)
+    app.register_blueprint(clients_bp)
+    app.register_blueprint(products_bp)
 
     @app.before_request
     def load_logged_in_user() -> None:
@@ -111,6 +115,12 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.context_processor
     def inject_template_values() -> dict:
         return {"current_user": g.get("current_user")}
+
+    @app.template_filter("brl")
+    def format_brl(cents: int) -> str:
+        value = int(cents)
+        whole = f"{value // 100:,}".replace(",", ".")
+        return f"R$ {whole},{value % 100:02d}"
 
     return app
 
