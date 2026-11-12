@@ -53,6 +53,7 @@ As decisões implementadas estão em `docs/engineering/adr/`:
 - [Módulo 2 — Coding Agents, AGENTS.md e Skills](02-coding-agents.md)
 - [Módulo 3 — Platform Engineering e DevEx](03-platform-devex.md)
 - [Módulo 4 — Observabilidade](04-observability.md)
+- [Módulo 5 — Qualidade e CI/CD](05-quality-cicd.md)
 
 ADRs registram o contexto, a decisão e suas consequências. Eles explicam por que o sistema atual tem esse formato; não substituem código, testes ou regras comerciais.
 
