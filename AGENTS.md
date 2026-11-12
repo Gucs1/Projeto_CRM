@@ -4,6 +4,7 @@
 
 - Este é um CRM local em Flask e SQLite. Orçamento/proposta é a oportunidade comercial; não crie uma entidade separada sem autorização.
 - Leia `docs/architecture.md` para localizar responsabilidades e `docs/business-rules.md` antes de alterar comportamentos comerciais.
+- Para entender o fluxo de trabalho dos agentes, diferenças entre harness/context/prompt e os ADRs, consulte `docs/engineering/01-harness-context.md`.
 - Para mudanças de funcionalidades do CRM, siga a Skill `.agents/skills/crm-change/SKILL.md`.
 
 ## Trabalho e validação
