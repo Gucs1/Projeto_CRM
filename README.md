@@ -96,6 +96,8 @@ Os testes cobrem autenticação, CSRF, migração, cadastro, permissões entre c
 
 Com o servidor em execução, abra `http://127.0.0.1:5000/health`. A resposta `{"status":"ok"}` indica que o processo respondeu e conseguiu executar uma consulta simples ao SQLite. A rota não retorna caminhos nem dados da aplicação.
 
+Cada resposta inclui um cabeçalho `X-Request-ID`. Os eventos JSON no terminal usam o mesmo ID; consulte `docs/engineering/04-observability.md` para correlacionar uma resposta e seu log sem registrar dados de formulário.
+
 ```powershell
 python -m pip check
 git diff --check

@@ -1,6 +1,8 @@
 """Valida login, proteção de rotas, CSRF e abertura local do navegador."""
 import re
 import io
+import json
+import logging
 import os
 import tempfile
 import unittest
@@ -11,7 +13,7 @@ from unittest.mock import Mock, patch
 import runpy
 
 import app as crm_app
-from app import create_app, load_config, open_browser_when_ready, run_local
+from app import SafeJsonFormatter, create_app, load_config, open_browser_when_ready, run_local
 from db import get_connection
 from models.user import create_user
 
@@ -52,6 +54,23 @@ class AuthAndInterfaceTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json(), {"status": "ok"})
         self.assertNotIn(self.app.config["DATABASE_PATH"], response.get_data(as_text=True))
+        self.assertRegex(response.headers["X-Request-ID"], r"^[a-f0-9]{32}$")
+
+    def test_safe_json_formatter_includes_only_allowlisted_observation_fields(self):
+        record = logging.LogRecord("app", logging.INFO, __file__, 1, "private payload", (), None)
+        record.event = "http_request"
+        record.request_id = "a" * 32
+        record.method = "GET"
+        record.route = "/quotes/<int:quote_id>"
+        record.status = 200
+        record.duration_ms = 12.5
+        rendered = SafeJsonFormatter().format(record)
+        event = json.loads(rendered)
+        self.assertEqual(event["event"], "http_request")
+        self.assertEqual(event["request_id"], "a" * 32)
+        self.assertEqual(event["route"], "/quotes/<int:quote_id>")
+        self.assertNotIn("private payload", rendered)
+        self.assertNotIn("pathname", event)
 
     def test_stale_session_does_not_grant_access(self):
         with self.client.session_transaction() as session:
@@ -297,9 +316,11 @@ class AuthAndInterfaceTests(unittest.TestCase):
             response = self.client.get("/test-private-error")
         self.assertEqual(response.status_code, 500)
         self.assertNotIn("private@example.com", response.get_data(as_text=True))
-        logs = " ".join(captured.output)
-        self.assertIn("ValueError", logs)
-        self.assertNotIn("private@example.com", logs)
+        error_record = next(record for record in captured.records if record.levelname == "ERROR")
+        self.assertEqual(error_record.event, "internal_error")
+        self.assertEqual(error_record.error_type, "ValueError")
+        self.assertEqual(error_record.request_id, response.headers["X-Request-ID"])
+        self.assertNotIn("private@example.com", " ".join(captured.output))
 
     def test_browser_opener_waits_for_server_then_opens_once(self):
         with patch("app.urllib.request.urlopen", return_value=nullcontext()) as request:

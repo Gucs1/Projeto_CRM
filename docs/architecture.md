@@ -13,6 +13,8 @@ Aplicação web local de processo único: Flask atende a interface no endereço 
 
 `GET /health` é uma verificação local mínima: confirma que o processo responde e que o SQLite executa `SELECT 1`. Retorna apenas `ok` ou `unavailable`, sem revelar o caminho do banco ou conteúdo dos registros.
 
+Cada requisição também recebe um ID aleatório exposto como `X-Request-ID`. Logs JSON registram evento, rota Flask, método, status e duração; erros registram o tipo da exceção. Não registram corpo, cookies, IP ou mensagem arbitrária da exceção. Consulte `docs/engineering/04-observability.md` para investigar uma requisição.
+
 ## Pastas e responsabilidades
 
 - `app.py`, `config.py`, `config.example.py`: construção da aplicação e configuração. `config.py` é local e privado.

@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import logging
 import os
 import secrets
 import string
@@ -9,6 +11,7 @@ import threading
 import time
 import sqlite3
 from contextlib import closing
+from datetime import datetime, timezone
 import urllib.error
 import urllib.request
 import webbrowser
@@ -25,6 +28,22 @@ from models.user import get_user_by_id
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config.py"
 csrf = CSRFProtect()
+
+
+class SafeJsonFormatter(logging.Formatter):
+    """Emite eventos estruturados sem serializar headers ou dados do formulário."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname.lower(),
+            "event": getattr(record, "event", record.getMessage()),
+        }
+        for field in ("request_id", "method", "route", "status", "duration_ms", "error_type"):
+            value = getattr(record, field, None)
+            if value is not None:
+                payload[field] = value
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
 class PrivacyAwareFlask(Flask):
@@ -89,6 +108,12 @@ def create_app(test_config: dict | None = None) -> Flask:
     cookie_secure = env_bool("COOKIE_SECURE", False)
 
     app = PrivacyAwareFlask(__name__)
+    app.logger.handlers.clear()
+    log_handler = logging.StreamHandler()
+    log_handler.setFormatter(SafeJsonFormatter())
+    app.logger.addHandler(log_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.propagate = False
     app.config.update(
         SECRET_KEY=os.getenv("SECRET_KEY", local_config.SECRET_KEY),
         DATABASE_PATH=str(database_path),
@@ -109,6 +134,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     )
     if test_config:
         app.config.update(test_config)
+    if app.testing:
+        app.logger.setLevel(logging.WARNING)
 
     initialize_database(
         app.config["DATABASE_PATH"],
@@ -129,6 +156,11 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(clients_bp)
     app.register_blueprint(products_bp)
     app.register_blueprint(quotes_bp)
+
+    @app.before_request
+    def begin_request_observation() -> None:
+        g.request_id = secrets.token_hex(16)
+        g.request_started_at = time.perf_counter()
 
     @app.before_request
     def load_logged_in_user() -> None:
@@ -152,12 +184,32 @@ def create_app(test_config: dict | None = None) -> Flask:
             with closing(sqlite3.connect(app.config["DATABASE_PATH"], timeout=1)) as connection:
                 connection.execute("SELECT 1").fetchone()
         except sqlite3.Error:
-            app.logger.warning("Verificação local do banco falhou")
+            app.logger.warning(
+                "Verificação local do banco falhou",
+                extra={"event": "health_database_unavailable", "request_id": g.request_id},
+            )
             return jsonify({"status": "unavailable"}), 503
         return jsonify({"status": "ok"}), 200
 
     @app.after_request
     def add_security_headers(response):
+        response.headers["X-Request-ID"] = g.get("request_id", secrets.token_hex(16))
+        request_started_at = g.get("request_started_at")
+        duration_ms = (
+            round(max(0.0, time.perf_counter() - request_started_at) * 1000, 2)
+            if request_started_at is not None else 0.0
+        )
+        app.logger.info(
+            "Requisição concluída",
+            extra={
+                "event": "http_request",
+                "request_id": response.headers["X-Request-ID"],
+                "method": request.method,
+                "route": request.url_rule.rule if request.url_rule else "unmatched",
+                "status": response.status_code,
+                "duration_ms": duration_ms,
+            },
+        )
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -176,9 +228,13 @@ def create_app(test_config: dict | None = None) -> Flask:
     def internal_server_error(error):
         original_error = getattr(error, "original_exception", None)
         app.logger.error(
-            "Falha interna em %s (%s)",
-            request.path,
-            type(original_error or error).__name__,
+            "Falha interna na requisição",
+            extra={
+                "event": "internal_error",
+                "request_id": g.get("request_id"),
+                "route": request.url_rule.rule if request.url_rule else "unmatched",
+                "error_type": type(original_error or error).__name__,
+            },
         )
         return render_template("errors/500.html"), 500
 
