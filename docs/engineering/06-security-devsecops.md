@@ -21,9 +21,9 @@ Esses controles reduzem riscos comuns, mas não fornecem recuperação de conta,
 - **Bandit 1.9.4:** análise estática Python baseada em AST. Fica em `requirements-dev.txt`, separada das dependências de runtime. O CI falha para achados médios/altos (`-ll`).
 - **pip-audit:** compara dependências Python de desenvolvimento e runtime com advisories públicos no job GitHub.
 - **npm audit:** verifica dependências do frontend com severidade moderada ou maior.
-- **Gitleaks Action v3:** examina o histórico Git em busca de segredos commitados, usando checkout completo.
+- **Gitleaks CLI em container (v8.24.3):** examina o histórico Git completo em busca de segredos commitados; não depende de um intervalo calculado a partir do SHA anterior do evento.
 
-O workflow não precisa de segredo próprio. O token automático do GitHub tem somente permissão de leitura, e comentários/artefatos do Gitleaks estão desativados. Em contas pessoais, Gitleaks Action não requer chave de licença; organizações podem precisar configurar a licença gratuita indicada pelo projeto Gitleaks.
+A varredura de segredos não recebe token nem requer licença: o container do Gitleaks lê o histórico já disponível no checkout e o workflow mantém somente a permissão `contents: read`.
 
 ## 4. Achados analisados durante a implementação
 
@@ -31,7 +31,7 @@ Bandit identificou `urllib.request.urlopen` no abridor automático do navegador 
 
 As consultas de migração foram convertidas para SQLs constantes escolhidos por mapas locais. Os dados (`admin_id`) continuam parametrizados. Assim Bandit não precisa ignorar B608; os testes de migração verificam preservação dos dados.
 
-Bandit reportou `No issues identified` para achados médios/altos após as mudanças. `npm audit` reportou zero vulnerabilidades. O pip-audit local não completou a consulta ao serviço remoto de advisories; portanto, não há resultado local aprovado para essa ferramenta. O job GitHub fará essa consulta quando o workflow rodar.
+Bandit reportou `No issues identified` para achados médios/altos após as mudanças. `npm audit` reportou zero vulnerabilidades. A execução local posterior encontrou zero vulnerabilidades conhecidas no conjunto auditado.
 
 ## 5. Como executar localmente
 
@@ -45,7 +45,7 @@ python -m unittest discover -s tests -v
 
 O `pip-audit` também pode ser executado com `python -m pip_audit -r requirements-dev.txt`, quando o serviço público de advisories estiver acessível. `pip-audit` detecta vulnerabilidades conhecidas por versão; não é SAST e não prova que o uso local de uma biblioteca seja seguro.
 
-O Gitleaks CI examina o histórico completo. Localmente, se tiver o CLI instalado, execute `gitleaks git --redact` na raiz. Ao detectar um segredo já commitado, revogue/rotacione o segredo primeiro; apagar o arquivo num commit posterior não remove o valor do histórico.
+O Gitleaks CI executa `gitleaks git --redact --verbose --exit-code 2` no repositório completo. Localmente, se tiver o CLI instalado, rode esse mesmo comando na raiz. Ao detectar um segredo já commitado, revogue/rotacione o segredo primeiro; apagar o arquivo num commit posterior não remove o valor do histórico.
 
 ## 6. Como interpretar os scanners
 
@@ -57,8 +57,8 @@ O Gitleaks CI examina o histórico completo. Localmente, se tiver o CLI instalad
 ## 7. Limitações
 
 - Os scanners dependem de regras e feeds externos; podem gerar falsos positivos ou não conhecer uma vulnerabilidade nova.
-- A auditoria `pip-audit` não foi concluída localmente por falta de resposta do serviço público. Nenhum resultado foi inventado.
-- O checkout local não tem remoto GitHub, portanto os jobs de auditoria e Gitleaks ainda não rodaram em runner remoto.
+- A correção usa o modo `git` do CLI oficial para que o scan completo aceite o primeiro commit, que não possui pai.
+- No primeiro push, a Action tentou formar o intervalo `c3175ab^..HEAD`; como `c3175ab` é o commit raiz, essa referência não existe. O workflow agora roda o scanner no histórico inteiro sem esse intervalo.
 - Bandit não cobre dependências, autenticação ponta a ponta, lógica comercial nem segurança operacional.
 - O projeto permanece local e de demonstração; não se deve expô-lo à internet sem uma revisão de implantação.
 
@@ -72,5 +72,5 @@ Critérios: diferenciar SAST, auditoria de dependências e secret scanning; inte
 
 - [Bandit — documentação e opções](https://github.com/PyCQA/bandit)
 - [pip-audit — auditoria de dependências Python](https://github.com/pypa/pip-audit)
-- [Gitleaks Action](https://github.com/gitleaks/gitleaks-action)
+- [Gitleaks CLI](https://github.com/gitleaks/gitleaks)
 - [GitHub Actions — práticas de segurança](https://docs.github.com/en/actions/reference/security/secure-use)

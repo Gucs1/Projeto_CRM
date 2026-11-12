@@ -99,9 +99,7 @@ jobs:
         with:
           inputs: requirements-dev.txt
 
-      - name: Scan repository history for leaked secrets
-        uses: gitleaks/gitleaks-action@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_COMMENTS: 'false'
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
+      - name: Scan complete Git history for leaked secrets
+        uses: docker://zricethezav/gitleaks:v8.24.3
+        with:
+          args: git --redact --verbose --exit-code 2

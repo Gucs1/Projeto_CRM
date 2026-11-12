@@ -159,7 +159,7 @@ python -m bandit -r app.py controllers models db.py pdf -ll
 npm audit --audit-level=moderate
 ```
 
-O workflow em `.github/workflows/ci.yml` executa a suíte com Python 3.10 e 3.13, confere dependências, reconstrói o CSS, verifica dependências npm, executa Bandit e pip-audit e varre o histórico Git com Gitleaks. Essas ferramentas ajudam a encontrar problemas conhecidos; não equivalem a auditoria independente ou teste de invasão.
+O workflow em `.github/workflows/ci.yml` executa a suíte com Python 3.10 e 3.13, confere dependências, reconstrói o CSS, verifica dependências npm, executa Bandit e pip-audit e examina o histórico Git completo com o CLI oficial do Gitleaks em container com versão fixada. Essa varredura não depende do SHA anterior do evento de push, inclusive quando o histórico começa por um commit raiz. Essas ferramentas ajudam a encontrar problemas conhecidos; não equivalem a auditoria independente ou teste de invasão.
 
 Com o servidor iniciado, `http://127.0.0.1:5000/health` deve responder `{"status":"ok"}` quando Flask e SQLite estiverem operacionais. Respostas incluem `X-Request-ID`; detalhes do formato de logs estão em `docs/engineering/04-observability.md`.
 
