@@ -11,7 +11,7 @@
 1. **Python:** executa em Python 3.10 e 3.13, instala `requirements.txt`, roda `pip check` e a suíte `unittest`.
 2. **Tailwind:** instala Node.js 22 e dependências travadas por `package-lock.json`, compila o CSS e falha se `static/css/tailwind.css` gerado diferir do arquivo commitado.
 
-O workflow roda em `push`, `pull_request` e manualmente com `workflow_dispatch`. O token tem apenas `contents: read`; não há secrets, publicação ou deploy. Há timeout e cancelamento de runs anteriores da mesma referência.
+O workflow roda em `push`, `pull_request`, manualmente com `workflow_dispatch` e semanalmente. O token tem apenas `contents: read`; não há secrets, publicação ou deploy. Há timeout e cancelamento de runs anteriores da mesma referência. O Módulo 6 adiciona o job de verificações de segurança a esse workflow.
 
 ## 3. Por que esses checks
 

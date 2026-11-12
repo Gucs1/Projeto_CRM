@@ -1,0 +1,3 @@
+# Ferramentas usadas para verificações de desenvolvimento e CI.
+-r requirements.txt
+bandit==1.9.4

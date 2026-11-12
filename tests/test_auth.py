@@ -329,6 +329,14 @@ class AuthAndInterfaceTests(unittest.TestCase):
         request.assert_called_once_with("http://127.0.0.1:5000/login", timeout=0.5)
         open_browser.assert_called_once_with("http://127.0.0.1:5000/login")
 
+    def test_browser_opener_rejects_non_loopback_urls(self):
+        with patch("app.urllib.request.urlopen") as request:
+            with patch("app.webbrowser.open_new_tab") as open_browser:
+                open_browser_when_ready("https://example.com")
+                open_browser_when_ready("http://user@127.0.0.1:5000/login")
+        request.assert_not_called()
+        open_browser.assert_not_called()
+
     def test_run_local_respects_browser_setting_and_disables_debug(self):
         fake_app = SimpleNamespace(
             config={"APP_PORT": 5000, "AUTO_OPEN_BROWSER": False},

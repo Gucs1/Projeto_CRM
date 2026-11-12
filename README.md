@@ -92,6 +92,18 @@ python -m unittest discover -s tests -v
 
 Os testes cobrem autenticação, CSRF, migração, cadastro, permissões entre contas, páginas de detalhes, catálogo e PDF usando bancos SQLite temporários.
 
+## Verificações de segurança
+
+As ferramentas de segurança ficam fora das dependências necessárias para executar o CRM. Para executar SAST localmente, instale as dependências de desenvolvimento e rode Bandit:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m bandit -r app.py controllers models db.py pdf -ll
+npm audit --audit-level=moderate
+```
+
+O GitHub Actions também roda `pip-audit` sobre dependências de runtime e desenvolvimento e Gitleaks sobre o histórico Git. O relatório de observabilidade registra que IDs/rotas não incluem corpo de formulário ou cookies. O CI semanal usa a base pública de advisories; nenhuma chave da aplicação é necessária.
+
 ## Verificações locais
 
 Com o servidor em execução, abra `http://127.0.0.1:5000/health`. A resposta `{"status":"ok"}` indica que o processo respondeu e conseguiu executar uma consulta simples ao SQLite. A rota não retorna caminhos nem dados da aplicação.
@@ -111,6 +123,7 @@ git diff --check
 - Cinco falhas de login em 15 minutos bloqueiam temporariamente novas tentativas daquele endereço IP. Como é um protótipo local, a limitação é persistida em SQLite e não substitui uma solução distribuída para servidor público.
 - Um token rotativo no banco invalida sessões antigas quando há novo login ou logout. Cookies usam `HttpOnly` e `SameSite=Lax`; `Secure` depende de HTTPS.
 - O código usa SQL parametrizado, escape padrão do Jinja, CSRF em formulários, validação no servidor e cabeçalhos de segurança. Isso reduz riscos comuns, mas não constitui auditoria de segurança independente.
+- GitHub Actions verifica dependências Python/Node e roda Bandit e Gitleaks em push, pull request e semanalmente. A varredura automatizada não substitui revisão manual nem teste de invasão.
 - A tela registra aceite da política de demonstração; ela não substitui termos legais revisados para uso comercial.
 - Os exemplos do repositório são fictícios. Preserve `config.py`, `.env` e `instance/` localmente e não os anexe a issues ou commits.
 

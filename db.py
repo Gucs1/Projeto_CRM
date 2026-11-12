@@ -54,22 +54,21 @@ def migrate_quote_client_snapshots(connection: sqlite3.Connection) -> None:
         row["name"] for row in connection.execute("PRAGMA table_info(quotes)")
     }
     snapshot_columns = {
-        "client_name": "TEXT NOT NULL DEFAULT ''",
-        "client_email": "TEXT NOT NULL DEFAULT ''",
-        "client_phone": "TEXT NOT NULL DEFAULT ''",
-        "client_company": "TEXT NOT NULL DEFAULT ''",
+        "client_name": ("TEXT NOT NULL DEFAULT ''", "name"),
+        "client_email": ("TEXT NOT NULL DEFAULT ''", "email"),
+        "client_phone": ("TEXT NOT NULL DEFAULT ''", "phone"),
+        "client_company": ("TEXT NOT NULL DEFAULT ''", "company"),
     }
-    for name, definition in snapshot_columns.items():
+    snapshot_updates = {
+        "client_name": "UPDATE quotes SET client_name = COALESCE((SELECT name FROM clients WHERE clients.id = quotes.client_id), '')",
+        "client_email": "UPDATE quotes SET client_email = COALESCE((SELECT email FROM clients WHERE clients.id = quotes.client_id), '')",
+        "client_phone": "UPDATE quotes SET client_phone = COALESCE((SELECT phone FROM clients WHERE clients.id = quotes.client_id), '')",
+        "client_company": "UPDATE quotes SET client_company = COALESCE((SELECT company FROM clients WHERE clients.id = quotes.client_id), '')",
+    }
+    for name, (definition, _client_field) in snapshot_columns.items():
         if name not in columns:
             connection.execute(f"ALTER TABLE quotes ADD COLUMN {name} {definition}")
-            client_field = name.removeprefix("client_")
-            connection.execute(
-                f"""UPDATE quotes
-                    SET {name} = COALESCE((
-                        SELECT {client_field} FROM clients
-                        WHERE clients.id = quotes.client_id
-                    ), '')"""
-            )
+            connection.execute(snapshot_updates[name])
 
 
 def migrate_quote_priority(connection: sqlite3.Connection) -> None:
@@ -114,15 +113,18 @@ def migrate_auth_security(connection: sqlite3.Connection) -> None:
 
 def migrate_user_ownership(connection: sqlite3.Connection, admin_id: int) -> None:
     """Dá os dados legados ao admin e adiciona guardas para bancos antigos."""
-    for table in ("clients", "products", "quotes"):
+    ownership_updates = {
+        "clients": "UPDATE clients SET user_id = ? WHERE user_id IS NULL",
+        "products": "UPDATE products SET user_id = ? WHERE user_id IS NULL",
+        "quotes": "UPDATE quotes SET user_id = ? WHERE user_id IS NULL",
+    }
+    for table, ownership_update in ownership_updates.items():
         columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
         if "user_id" not in columns:
             connection.execute(
                 f"ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE"
             )
-        connection.execute(
-            f"UPDATE {table} SET user_id = ? WHERE user_id IS NULL", (admin_id,)
-        )
+        connection.execute(ownership_update, (admin_id,))
         if table == "clients":
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_clients_user_name "

@@ -13,6 +13,7 @@ import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
 import urllib.error
+from urllib.parse import urlsplit
 import urllib.request
 import webbrowser
 from datetime import timedelta
@@ -249,10 +250,18 @@ def create_app(test_config: dict | None = None) -> Flask:
 
 def open_browser_when_ready(url: str, timeout: float = 15.0) -> None:
     """Abre a página uma vez, depois que o servidor local responde."""
+    parsed_url = urlsplit(url)
+    if (
+        parsed_url.scheme != "http"
+        or parsed_url.hostname != "127.0.0.1"
+        or parsed_url.username is not None
+        or parsed_url.password is not None
+    ):
+        return
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            with urllib.request.urlopen(url, timeout=0.5):
+            with urllib.request.urlopen(url, timeout=0.5):  # nosec B310
                 webbrowser.open_new_tab(url)
                 return
         except (urllib.error.URLError, TimeoutError, OSError):
