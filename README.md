@@ -22,37 +22,47 @@ CRM de demonstração em Flask e SQLite para organizar clientes, catálogo e pro
 
 React/TypeScript não foram adicionados: a aplicação já usa renderização no servidor, e substituir o frontend não traria benefício suficiente para justificar uma segunda arquitetura e processo de build.
 
-## Instalação e execução local
+## Onboarding local
 
-No Windows PowerShell, abra esta pasta e execute:
+### Windows PowerShell
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-Copy-Item .env.example .env
 python app.py
 ```
 
-O aplicativo escuta em `127.0.0.1` e abre `http://127.0.0.1:5000/login`. O CSS compilado está incluído no repositório, então não é necessário Node.js para executar o CRM.
+No Prompt de Comando (cmd.exe), a ativação equivalente é `.venv\\Scripts\\activate.bat`. Também é possível pular a ativação e executar `.venv\\Scripts\\python.exe app.py`.
+
+### macOS ou Linux
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+python app.py
+```
+
+O aplicativo escuta em `127.0.0.1` e abre `http://127.0.0.1:5000/login`. O CSS compilado está incluído no repositório, então não é necessário Node.js para executar o CRM. Não é necessário criar `.env`: `app.py` gera `config.py` privado e o banco local na primeira execução. Copie `.env.example` somente se precisar sobrescrever configurações e descomente apenas as variáveis necessárias.
 
 Na primeira inicialização, o programa cria `config.py` local e `instance/crm.sqlite3`. O usuário administrador é `admin`; sua senha aleatória fica apenas em `config.py` e não é impressa nos logs. Mantenha esse arquivo privado. Para uma conta independente, selecione **Criar conta**.
 
 ## Configuração
 
-Edite `.env` com valores privados antes de usar:
+Se precisar personalizar valores, copie `.env.example` para `.env` e descomente somente as variáveis que deseja definir:
 
 ```dotenv
 # Opcional: descomente para sobrescrever a chave privada gerada localmente.
 # SECRET_KEY=
-ADMIN_USERNAME=admin
+# ADMIN_USERNAME=admin
 # Opcional: deixe comentado para gerar uma senha administrativa aleatória.
 # ADMIN_PASSWORD=
-DATABASE_PATH=instance/crm.sqlite3
-COMPANY_NAME=Nexo CRM
-APP_PORT=5000
-AUTO_OPEN_BROWSER=true
-COOKIE_SECURE=false
+# DATABASE_PATH=instance/crm.sqlite3
+# COMPANY_NAME=Nexo CRM
+# APP_PORT=5000
+# AUTO_OPEN_BROWSER=true
+# COOKIE_SECURE=false
 ```
 
 `SECRET_KEY` deve ser aleatória e mantida fora do Git. `COOKIE_SECURE` só deve ser ativada quando houver HTTPS. O arquivo `.env`, `config.py` e o banco local são ignorados pelo Git; `.env.example` não contém segredos e deixa as credenciais opcionais comentadas para evitar senhas de exemplo em uso.
@@ -81,6 +91,17 @@ python -m unittest discover -s tests -v
 ```
 
 Os testes cobrem autenticação, CSRF, migração, cadastro, permissões entre contas, páginas de detalhes, catálogo e PDF usando bancos SQLite temporários.
+
+## Verificações locais
+
+Com o servidor em execução, abra `http://127.0.0.1:5000/health`. A resposta `{"status":"ok"}` indica que o processo respondeu e conseguiu executar uma consulta simples ao SQLite. A rota não retorna caminhos nem dados da aplicação.
+
+```powershell
+python -m pip check
+git diff --check
+```
+
+`pip check` deve informar `No broken requirements found.`; `git diff --check` deve terminar sem apontar whitespace incorreto. Node.js é necessário apenas para recompilar Tailwind, não para executar o CRM.
 
 ## Segurança e limitações conhecidas
 

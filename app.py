@@ -7,13 +7,15 @@ import secrets
 import string
 import threading
 import time
+import sqlite3
+from contextlib import closing
 import urllib.error
 import urllib.request
 import webbrowser
 from datetime import timedelta
 from pathlib import Path
 
-from flask import Flask, g, render_template, request, session
+from flask import Flask, g, jsonify, render_template, request, session
 from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
 
@@ -142,6 +144,17 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.context_processor
     def inject_template_values() -> dict:
         return {"current_user": g.get("current_user")}
+
+    @app.get("/health")
+    def health():
+        """Verifica a disponibilidade local do processo e do SQLite sem expor dados."""
+        try:
+            with closing(sqlite3.connect(app.config["DATABASE_PATH"], timeout=1)) as connection:
+                connection.execute("SELECT 1").fetchone()
+        except sqlite3.Error:
+            app.logger.warning("Verificação local do banco falhou")
+            return jsonify({"status": "unavailable"}), 503
+        return jsonify({"status": "ok"}), 200
 
     @app.after_request
     def add_security_headers(response):

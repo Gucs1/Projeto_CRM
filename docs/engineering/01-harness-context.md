@@ -51,6 +51,7 @@ As decisões implementadas estão em `docs/engineering/adr/`:
 - [ADR-0001 — Flask, SQLite e páginas Jinja para execução local](adr/0001-flask-sqlite-local.md)
 - [ADR-0002 — Isolamento de dados por conta e preservação do banco legado](adr/0002-account-data-isolation.md)
 - [Módulo 2 — Coding Agents, AGENTS.md e Skills](02-coding-agents.md)
+- [Módulo 3 — Platform Engineering e DevEx](03-platform-devex.md)
 
 ADRs registram o contexto, a decisão e suas consequências. Eles explicam por que o sistema atual tem esse formato; não substituem código, testes ou regras comerciais.
 

@@ -36,3 +36,4 @@
 - Antes de alterar arquivos, identifique o comportamento solicitado, as camadas afetadas e os testes necessários.
 - Prefira dependências e ferramentas que já existem no projeto. Não suponha que uma biblioteca, comando ou endpoint esteja disponível sem verificar.
 - Não execute operações destrutivas nem acesse dados locais privados para tarefas que podem ser feitas com schema e bancos temporários.
+- O onboarding não deve exigir Docker ou Node para executar o CRM; Tailwind já é entregue compilado. Preserve essa distinção em documentação e scripts.

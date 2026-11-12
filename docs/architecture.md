@@ -11,6 +11,8 @@ Aplicação web local de processo único: Flask atende a interface no endereço 
 3. O modelo consulta ou atualiza SQLite por meio de `db.py`, usando transações e parâmetros SQL.
 4. A resposta renderiza um template Jinja em `templates/` ou, para download de proposta, envia bytes produzidos por `pdf/generator.py`.
 
+`GET /health` é uma verificação local mínima: confirma que o processo responde e que o SQLite executa `SELECT 1`. Retorna apenas `ok` ou `unavailable`, sem revelar o caminho do banco ou conteúdo dos registros.
+
 ## Pastas e responsabilidades
 
 - `app.py`, `config.py`, `config.example.py`: construção da aplicação e configuração. `config.py` é local e privado.

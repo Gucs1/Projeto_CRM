@@ -47,6 +47,12 @@ class AuthAndInterfaceTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/login")
 
+    def test_health_reports_only_process_and_database_availability(self):
+        response = self.client.get("/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"status": "ok"})
+        self.assertNotIn(self.app.config["DATABASE_PATH"], response.get_data(as_text=True))
+
     def test_stale_session_does_not_grant_access(self):
         with self.client.session_transaction() as session:
             session["user_id"] = 9999
