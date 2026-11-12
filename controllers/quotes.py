@@ -2,7 +2,7 @@
 import re
 from io import BytesIO
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, request, send_file, url_for
 
 from controllers.auth import login_required
 from models.client import list_clients
@@ -33,9 +33,12 @@ def quote_form_values():
     notes = request.form.get("notes", "").strip()
     priority = request.form.get("priority", DEFAULT_QUOTE_PRIORITY).strip()
     errors = []
+    field_errors = {}
 
     if priority not in QUOTE_PRIORITIES:
-        errors.append("Selecione uma prioridade válida.")
+        message = "Selecione uma prioridade válida."
+        errors.append(message)
+        field_errors["priority"] = message
 
     try:
         client_id = int(selected_client_id)
@@ -43,12 +46,18 @@ def quote_form_values():
             raise ValueError
     except ValueError:
         client_id = None
-        errors.append("Selecione um cliente.")
+        message = "Selecione um cliente."
+        errors.append(message)
+        field_errors["client_id"] = message
 
     if not product_ids or len(product_ids) != len(quantities):
-        errors.append("Adicione pelo menos um item ao orçamento.")
+        message = "Adicione pelo menos um item ao orçamento."
+        errors.append(message)
+        field_errors["items"] = message
     elif len(product_ids) > MAX_QUOTE_ITEMS:
-        errors.append(f"O orçamento pode conter até {MAX_QUOTE_ITEMS} itens.")
+        message = f"O orçamento pode conter até {MAX_QUOTE_ITEMS} itens."
+        errors.append(message)
+        field_errors["items"] = message
 
     items = []
     for index, product_value in enumerate(product_ids[:MAX_QUOTE_ITEMS]):
@@ -58,19 +67,27 @@ def quote_form_values():
             if product_id <= 0:
                 raise ValueError
         except ValueError:
-            errors.append("Selecione um produto ou serviço para cada linha.")
+            message = "Selecione um produto ou serviço para cada linha."
+            errors.append(message)
+            field_errors.setdefault("product_id", message)
             continue
         if not re.fullmatch(r"\d+", quantity_value):
-            errors.append("As quantidades devem ser números inteiros positivos.")
+            message = "As quantidades devem ser números inteiros positivos."
+            errors.append(message)
+            field_errors.setdefault("quantity", message)
             continue
         quantity = int(quantity_value)
         if not 1 <= quantity <= MAX_ITEM_QUANTITY:
-            errors.append(f"Cada quantidade deve estar entre 1 e {MAX_ITEM_QUANTITY}.")
+            message = f"Cada quantidade deve estar entre 1 e {MAX_ITEM_QUANTITY}."
+            errors.append(message)
+            field_errors.setdefault("quantity", message)
             continue
         items.append({"product_id": product_id, "quantity": quantity})
 
     if len(notes) > NOTES_LIMIT:
-        errors.append(f"As observações podem ter até {NOTES_LIMIT} caracteres.")
+        message = f"As observações podem ter até {NOTES_LIMIT} caracteres."
+        errors.append(message)
+        field_errors["notes"] = message
 
     return {
         "client_id": client_id,
@@ -81,13 +98,14 @@ def quote_form_values():
         "priority": priority,
         "items": items,
         "errors": errors,
+        "field_errors": field_errors,
     }
 
 
 @quotes_bp.get("/quotes")
 @login_required
 def index():
-    quotes = list_quotes(current_app.config["DATABASE_PATH"])
+    quotes = list_quotes(current_app.config["DATABASE_PATH"], g.current_user["id"])
     return render_template("quotes/list.html", quotes=quotes, client=None)
 
 
@@ -95,8 +113,8 @@ def index():
 @login_required
 def create():
     database_path = current_app.config["DATABASE_PATH"]
-    clients = list_clients(database_path)
-    products = list_products(database_path)
+    clients = list_clients(database_path, g.current_user["id"])
+    products = list_products(database_path, g.current_user["id"])
     if not clients or not products:
         return render_template(
             "quotes/no_catalog.html",
@@ -123,6 +141,7 @@ def create():
         try:
             quote_id = create_quote(
                 database_path,
+                g.current_user["id"],
                 values["client_id"],
                 values["notes"],
                 values["items"],
@@ -146,7 +165,7 @@ def create():
 @quotes_bp.get("/quotes/<int:quote_id>")
 @login_required
 def detail(quote_id: int):
-    result = get_quote(current_app.config["DATABASE_PATH"], quote_id)
+    result = get_quote(current_app.config["DATABASE_PATH"], g.current_user["id"], quote_id)
     if result is None:
         abort(404)
     return render_template(
@@ -161,7 +180,7 @@ def detail(quote_id: int):
 @quotes_bp.get("/quotes/<int:quote_id>/pdf")
 @login_required
 def download_pdf(quote_id: int):
-    result = get_quote(current_app.config["DATABASE_PATH"], quote_id)
+    result = get_quote(current_app.config["DATABASE_PATH"], g.current_user["id"], quote_id)
     if result is None:
         abort(404)
     company = {
@@ -193,7 +212,9 @@ def status(quote_id: int):
     new_status = request.form.get("status", "")
     if new_status not in QUOTE_STATUSES:
         flash("Selecione um status válido.", "error")
-    elif not update_quote_status(current_app.config["DATABASE_PATH"], quote_id, new_status):
+    elif not update_quote_status(
+        current_app.config["DATABASE_PATH"], g.current_user["id"], quote_id, new_status
+    ):
         abort(404)
     else:
         flash("Status do orçamento atualizado.", "success")
@@ -207,7 +228,7 @@ def priority(quote_id: int):
     if new_priority not in QUOTE_PRIORITIES:
         flash("Selecione uma prioridade válida.", "error")
     elif not update_quote_priority(
-        current_app.config["DATABASE_PATH"], quote_id, new_priority
+        current_app.config["DATABASE_PATH"], g.current_user["id"], quote_id, new_priority
     ):
         abort(404)
     else:
@@ -218,7 +239,9 @@ def priority(quote_id: int):
 @quotes_bp.get("/clients/<int:client_id>/quotes")
 @login_required
 def client_history(client_id: int):
-    result = list_client_quotes(current_app.config["DATABASE_PATH"], client_id)
+    result = list_client_quotes(
+        current_app.config["DATABASE_PATH"], g.current_user["id"], client_id
+    )
     if result is None:
         abort(404)
     return render_template(

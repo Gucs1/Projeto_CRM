@@ -30,32 +30,41 @@ PRODUCTS = [
 ]
 
 
-def ensure_client(connection, values):
-    row = connection.execute("SELECT id FROM clients WHERE name = ?", (values[0],)).fetchone()
+def ensure_client(connection, user_id, values):
+    row = connection.execute(
+        "SELECT id FROM clients WHERE user_id = ? AND name = ?", (user_id, values[0])
+    ).fetchone()
     if row:
         return row["id"]
     return connection.execute(
-        "INSERT INTO clients (name, email, phone, company, notes) VALUES (?, ?, ?, ?, ?)",
-        values,
+        """INSERT INTO clients (user_id, name, email, phone, company, notes)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (user_id, *values),
     ).lastrowid
 
 
-def ensure_product(connection, values):
-    row = connection.execute("SELECT id FROM products WHERE name = ?", (values[0],)).fetchone()
+def ensure_product(connection, user_id, values):
+    row = connection.execute(
+        "SELECT id FROM products WHERE user_id = ? AND name = ?", (user_id, values[0])
+    ).fetchone()
     if row:
         return row["id"]
     return connection.execute(
-        "INSERT INTO products (name, description, unit_price_cents) VALUES (?, ?, ?)",
-        values,
+        """INSERT INTO products (user_id, name, description, unit_price_cents)
+           VALUES (?, ?, ?, ?)""",
+        (user_id, *values),
     ).lastrowid
 
 
 def main():
     app = create_app()
     database_path = app.config["DATABASE_PATH"]
+    from app import load_config
+    from models.user import get_user_by_username
+    admin_id = get_user_by_username(database_path, load_config().ADMIN_USERNAME)["id"]
     with get_connection(database_path) as connection:
-        client_ids = [ensure_client(connection, row) for row in CLIENTS]
-        product_ids = [ensure_product(connection, row) for row in PRODUCTS]
+        client_ids = [ensure_client(connection, admin_id, row) for row in CLIENTS]
+        product_ids = [ensure_product(connection, admin_id, row) for row in PRODUCTS]
 
     quote_specs = [
         (0, "Consultoria e treinamento", [(0, 1), (5, 1)]),
@@ -68,13 +77,14 @@ def main():
         note = f"Demonstração CRM: {label}. Registro fictício para validação do sistema."
         with get_connection(database_path) as connection:
             exists = connection.execute(
-                "SELECT id FROM quotes WHERE client_id = ? AND notes = ?",
-                (client_ids[client_index], note),
+                "SELECT id FROM quotes WHERE user_id = ? AND client_id = ? AND notes = ?",
+                (admin_id, client_ids[client_index], note),
             ).fetchone()
         if exists:
             continue
         create_quote(
             database_path,
+            admin_id,
             client_ids[client_index],
             note,
             [{"product_id": product_ids[product_index], "quantity": quantity}

@@ -16,6 +16,10 @@ Use esta sequência para manter o comportamento compreensível e verificável.
 7. Revise o diff e o status; não inclua `config.py`, `instance/`, ambientes virtuais nem dados de clientes. Faça commit apenas dos arquivos relacionados à fase autorizada.
 8. Ao concluir uma fase, informe mudanças, motivos, testes e hash do commit. Pare e aguarde autorização explícita antes de iniciar a fase seguinte.
 
+## Contas e isolamento de dados
+
+Ao criar ou alterar rotas de clientes, produtos ou orçamentos, propague o ID do usuário autenticado até o modelo e filtre todas as consultas por esse ID. Inclua testes de acesso cruzado para listagem, detalhe, histórico, PDF e mutações. Não exponha o servidor fora do loopback sem solicitação e revisão específicas.
+
 ## Exemplo de aplicação
 
 Ao adicionar prioridade à oportunidade, confirme que orçamento é a oportunidade do CRM, documente os níveis e o padrão, migre registros existentes sem apagá-los, valide valores no servidor e cubra criação, edição, listagem, PDF e migração com testes.

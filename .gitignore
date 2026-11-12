@@ -1,9 +1,13 @@
 config.py
+.env
+.env.*
+!.env.example
 instance/
 *.sqlite3
 *.db
 .venv/
 venv/
+node_modules/
 .tools/
 __pycache__/
 *.py[cod]

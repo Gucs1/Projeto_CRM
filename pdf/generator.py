@@ -187,7 +187,7 @@ def _draw_company_mark(canvas, logo_path: str | Path | None, company_name: str) 
     canvas.roundRect(x, y, width, height, 10, stroke=0, fill=1)
     canvas.setFillColor(WHITE)
     canvas.setFont("Helvetica-Bold", 20)
-    canvas.drawCentredString(x + width / 2, y + 12, "M")
+    canvas.drawCentredString(x + width / 2, y + 12, "N")
 
 
 def _draw_page_chrome(company: dict, logo_path: str | Path | None):
@@ -243,7 +243,7 @@ def generate_quote_pdf(quote, items, company: dict, logo_path: str | Path | None
         topMargin=122,
         bottomMargin=55,
         title=f"Orçamento {quote['id']} - {quote['client_name']}",
-        author=company.get("name", "CRM de Orçamentos"),
+        author=company.get("name", "Nexo CRM"),
         subject=f"Proposta comercial {quote['id']}",
     )
     styles = _make_styles()

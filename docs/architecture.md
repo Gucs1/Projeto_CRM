@@ -6,8 +6,8 @@ Aplicação web local de processo único: Flask atende a interface no endereço 
 
 ## Caminho de uma requisição
 
-1. `app.py` carrega a configuração local, inicializa o banco, registra os Blueprints, configura sessão e proteção CSRF.
-2. Uma rota em `controllers/` autentica a ação, valida entrada HTTP e chama funções do domínio/persistência em `models/`.
+1. `app.py` carrega a configuração local, inicializa o banco, registra os Blueprints, configura sessão, proteção CSRF e cabeçalhos de segurança.
+2. `controllers/auth.py` autentica e cadastra contas. As outras rotas autenticam a ação, validam entrada HTTP e passam o usuário da sessão às funções de `models/`.
 3. O modelo consulta ou atualiza SQLite por meio de `db.py`, usando transações e parâmetros SQL.
 4. A resposta renderiza um template Jinja em `templates/` ou, para download de proposta, envia bytes produzidos por `pdf/generator.py`.
 
@@ -17,10 +17,14 @@ Aplicação web local de processo único: Flask atende a interface no endereço 
 - `db.py`, `schema.sql`: conexões, schema inicial, inicialização e migrações compatíveis com dados existentes.
 - `controllers/`: autenticação e rotas Flask organizadas por área.
 - `models/`: consultas e regras de persistência para usuários, clientes, produtos e orçamentos.
-- `templates/`, `static/`: páginas Jinja e recursos da interface. Tailwind é carregado via CDN.
+- `templates/`, `static/`: páginas Jinja, recursos de interface e CSS do Tailwind compilado. A compilação usa `tailwind.config.js`, `package.json` e gera `static/css/tailwind.css`.
 - `pdf/`: composição de propostas PDF com ReportLab.
 - `tests/`: testes `unittest`; cada teste que precisa de banco deve usar um SQLite temporário, sem tocar nos dados locais.
 - `scripts/`: utilitários locais, como criação idempotente de dados demonstrativos.
+
+## Contas e isolamento
+
+O login aceita o administrador legado ou e-mail normalizado de uma conta criada pela tela de cadastro. Cada cliente, produto e orçamento tem `user_id`; consultas e alterações sempre filtram por esse identificador. A migração atribui dados existentes sem proprietário ao administrador local já configurado, nunca a novas contas, e cria guardas SQLite para manter os vínculos. Senhas ficam como hash, falhas de login são limitadas por endereço local e um token rotativo no banco permite invalidar sessões antigas. Configuração pode vir de `.env`; nunca versionar `.env` ou `config.py`. O aplicativo escuta apenas em `127.0.0.1`.
 
 ## Fluxo comercial atual
 

@@ -10,6 +10,10 @@ Este documento registra o comportamento existente e as decisões aprovadas para 
 - Status válidos: `Enviado`, `Aprovado` e `Recusado`.
 - Registros associados não podem ser excluídos quando a exclusão quebraria o histórico comercial.
 - Rotas de CRM exigem sessão autenticada; formulários de alteração usam proteção CSRF.
+- Contas novas usam e-mail normalizado para login e exigem senha de 12 a 128 caracteres e aceite registrado dos termos. O login legado do administrador continua aceitando o nome de usuário.
+- Clientes, produtos e orçamentos são isolados por conta. Registros que já existiam antes do cadastro multiusuário são atribuídos ao administrador local durante migração, sem apagar dados.
+- Este é um exemplo de execução local. Não há confirmação de e-mail nem controles de operação para exposição pública; a aplicação fica vinculada a `127.0.0.1`.
+- Cinco falhas de login a partir do mesmo endereço em 15 minutos bloqueiam novas tentativas por esse endereço até a janela passar. Um novo login invalida o token de sessão anterior da mesma conta.
 
 ## Prioridade da oportunidade (implementada)
 

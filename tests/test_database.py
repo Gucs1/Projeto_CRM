@@ -26,17 +26,23 @@ class DatabaseInitializationTests(unittest.TestCase):
             self.assertTrue({"users", "clients", "products", "quotes", "quote_items"}
                             .issubset(tables))
             user = connection.execute(
-                "SELECT username, password_hash FROM users WHERE username = 'admin'"
+                "SELECT username, password_hash, session_token FROM users WHERE username = 'admin'"
             ).fetchone()
             self.assertEqual(user["username"], "admin")
             self.assertNotEqual(user["password_hash"], "local-secret")
             self.assertTrue(check_password_hash(user["password_hash"], "local-secret"))
+            self.assertIn("session_token", user.keys())
 
     def test_reinitialization_preserves_existing_data_and_password(self):
         initialize_database(self.database, self.schema, "admin", "first-secret")
         with get_connection(self.database) as connection:
+            admin_id = connection.execute(
+                "SELECT id FROM users WHERE username = 'admin'"
+            ).fetchone()["id"]
             connection.execute(
-                "INSERT INTO clients (name) VALUES (?)", ("Cliente de teste",))
+                "INSERT INTO clients (user_id, name) VALUES (?, ?)",
+                (admin_id, "Cliente de teste"),
+            )
         initialize_database(self.database, self.schema, "admin", "changed-secret")
         with get_connection(self.database) as connection:
             client = connection.execute(
@@ -50,10 +56,14 @@ class DatabaseInitializationTests(unittest.TestCase):
 
     def test_foreign_keys_are_enforced(self):
         initialize_database(self.database, self.schema, "admin", "local-secret")
+        with get_connection(self.database) as connection:
+            admin_id = connection.execute(
+                "SELECT id FROM users WHERE username = 'admin'"
+            ).fetchone()["id"]
         with self.assertRaises(sqlite3.IntegrityError):
             with get_connection(self.database) as connection:
                 connection.execute(
-                    "INSERT INTO quotes (client_id) VALUES (9999)")
+                    "INSERT INTO quotes (user_id, client_id) VALUES (?, ?)", (admin_id, 9999))
 
     def test_existing_quotes_receive_client_snapshots_once(self):
         with get_connection(self.database) as connection:
@@ -91,6 +101,14 @@ class DatabaseInitializationTests(unittest.TestCase):
 
         initialize_database(self.database, self.schema, "admin", "local-secret")
         with get_connection(self.database) as connection:
+            admin_id = connection.execute(
+                "SELECT id FROM users WHERE username = 'admin'"
+            ).fetchone()["id"]
+            owner_ids = {
+                table: connection.execute(f"SELECT DISTINCT user_id FROM {table}").fetchone()[0]
+                for table in ("clients", "quotes")
+            }
+            self.assertEqual(owner_ids, {"clients": admin_id, "quotes": admin_id})
             quote = connection.execute(
                 "SELECT client_name, client_email, client_phone, client_company FROM quotes WHERE id = 1"
             ).fetchone()
@@ -154,11 +172,14 @@ class DatabaseInitializationTests(unittest.TestCase):
     def test_new_schema_defaults_priority_and_rejects_unknown_value(self):
         initialize_database(self.database, self.schema, "admin", "local-secret")
         with get_connection(self.database) as connection:
+            admin_id = connection.execute(
+                "SELECT id FROM users WHERE username = 'admin'"
+            ).fetchone()["id"]
             client_id = connection.execute(
-                "INSERT INTO clients (name) VALUES ('Cliente')"
+                "INSERT INTO clients (user_id, name) VALUES (?, 'Cliente')", (admin_id,)
             ).lastrowid
             quote_id = connection.execute(
-                "INSERT INTO quotes (client_id) VALUES (?)", (client_id,)
+                "INSERT INTO quotes (user_id, client_id) VALUES (?, ?)", (admin_id, client_id)
             ).lastrowid
             quote = connection.execute(
                 "SELECT priority FROM quotes WHERE id = ?", (quote_id,)

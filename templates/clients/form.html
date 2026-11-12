@@ -4,7 +4,7 @@
 <div class="mx-auto max-w-3xl">
   <a href="{{ url_for('clients.index') }}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800"><span aria-hidden="true">←</span> Voltar para clientes</a>
   <div class="mt-4">
-    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Relacionamento</p>
+    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Relacionamento</p>
     <h1 class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{{ 'Editar cliente' if editing else 'Novo cliente' }}</h1>
     <p class="mt-2 text-sm text-slate-500">{{ 'Atualize os dados deste contato.' if editing else 'Preencha os dados para adicionar um contato ao CRM.' }}</p>
   </div>
@@ -13,29 +13,34 @@
     <div class="grid gap-5 sm:grid-cols-2">
       <div class="sm:col-span-2">
         <label for="name" class="mb-2 block text-sm font-medium text-slate-700">Nome <span class="text-rose-600">*</span></label>
-        <input id="name" name="name" type="text" required maxlength="120" value="{{ client['name'] or '' }}" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="Nome do cliente">
+        <input id="name" name="name" type="text" required maxlength="120" value="{{ client['name'] or '' }}" aria-invalid="{{ 'true' if errors.get('name') else 'false' }}" {% if errors.get('name') %}aria-describedby="name-error"{% endif %} class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10" placeholder="Nome do cliente">
+        {% if errors.get('name') %}<p id="name-error" class="field-error" role="alert">{{ errors['name'] }}</p>{% endif %}
       </div>
       <div>
         <label for="email" class="mb-2 block text-sm font-medium text-slate-700">E-mail</label>
-        <input id="email" name="email" type="email" maxlength="254" value="{{ client['email'] or '' }}" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="nome@empresa.com">
+        <input id="email" name="email" type="email" maxlength="254" value="{{ client['email'] or '' }}" aria-invalid="{{ 'true' if errors.get('email') else 'false' }}" {% if errors.get('email') %}aria-describedby="email-error"{% endif %} class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10" placeholder="nome@empresa.com">
+        {% if errors.get('email') %}<p id="email-error" class="field-error" role="alert">{{ errors['email'] }}</p>{% endif %}
       </div>
       <div>
         <label for="phone" class="mb-2 block text-sm font-medium text-slate-700">Telefone</label>
-        <input id="phone" name="phone" type="tel" maxlength="40" value="{{ client['phone'] or '' }}" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="(11) 99999-9999">
+        <input id="phone" name="phone" type="tel" maxlength="40" value="{{ client['phone'] or '' }}" aria-invalid="{{ 'true' if errors.get('phone') else 'false' }}" {% if errors.get('phone') %}aria-describedby="phone-error"{% endif %} class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10" placeholder="(11) 99999-9999">
+        {% if errors.get('phone') %}<p id="phone-error" class="field-error" role="alert">{{ errors['phone'] }}</p>{% endif %}
       </div>
       <div class="sm:col-span-2">
         <label for="company" class="mb-2 block text-sm font-medium text-slate-700">Empresa <span class="font-normal text-slate-400">(opcional)</span></label>
-        <input id="company" name="company" type="text" maxlength="120" value="{{ client['company'] or '' }}" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="Nome da empresa">
+        <input id="company" name="company" type="text" maxlength="120" value="{{ client['company'] or '' }}" aria-invalid="{{ 'true' if errors.get('company') else 'false' }}" {% if errors.get('company') %}aria-describedby="company-error"{% endif %} class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10" placeholder="Nome da empresa">
+        {% if errors.get('company') %}<p id="company-error" class="field-error" role="alert">{{ errors['company'] }}</p>{% endif %}
       </div>
       <div class="sm:col-span-2">
         <label for="notes" class="mb-2 block text-sm font-medium text-slate-700">Observações</label>
-        <textarea id="notes" name="notes" rows="4" maxlength="2000" class="w-full resize-y rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="Informações úteis sobre o cliente">{{ client['notes'] or '' }}</textarea>
+        <textarea id="notes" name="notes" rows="4" maxlength="2000" class="w-full resize-y rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10" placeholder="Informações úteis sobre o cliente">{{ client['notes'] or '' }}</textarea>
+        {% if errors.get('notes') %}<p id="notes-error" class="field-error" role="alert">{{ errors['notes'] }}</p>{% endif %}
         <p class="mt-1.5 text-xs text-slate-400">Até 2.000 caracteres.</p>
       </div>
     </div>
     <div class="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
       <a href="{{ url_for('clients.index') }}" class="rounded-xl border border-slate-200 px-4 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</a>
-      <button type="submit" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">{{ 'Salvar alterações' if editing else 'Cadastrar cliente' }}</button>
+      <button type="submit" class="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700">{{ 'Salvar alterações' if editing else 'Cadastrar cliente' }}</button>
     </div>
   </form>
 </div>

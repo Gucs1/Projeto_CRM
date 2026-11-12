@@ -9,7 +9,7 @@ QUOTE_PRIORITIES = ("Baixa", "Média", "Alta")
 DEFAULT_QUOTE_PRIORITY = "Média"
 
 
-def create_quote(database_path: str, client_id: int, notes: str,
+def create_quote(database_path: str, user_id: int, client_id: int, notes: str,
                  requested_items: list[dict],
                  priority: str = DEFAULT_QUOTE_PRIORITY) -> int:
     """Cria orçamento e itens em uma transação usando os preços do catálogo."""
@@ -23,8 +23,8 @@ def create_quote(database_path: str, client_id: int, notes: str,
     with get_connection(database_path) as connection:
         client = connection.execute(
             """SELECT id, name, email, phone, company
-               FROM clients WHERE id = ?""",
-            (client_id,),
+               FROM clients WHERE id = ? AND user_id = ?""",
+            (client_id, user_id),
         ).fetchone()
         if client is None:
             raise ValueError("Selecione um cliente válido.")
@@ -34,8 +34,8 @@ def create_quote(database_path: str, client_id: int, notes: str,
         for requested in requested_items:
             product = connection.execute(
                 """SELECT id, name, description, unit_price_cents
-                   FROM products WHERE id = ?""",
-                (requested["product_id"],),
+                   FROM products WHERE id = ? AND user_id = ?""",
+                (requested["product_id"], user_id),
             ).fetchone()
             if product is None:
                 raise ValueError("Um dos produtos selecionados não está mais disponível.")
@@ -62,10 +62,10 @@ def create_quote(database_path: str, client_id: int, notes: str,
 
         cursor = connection.execute(
             """INSERT INTO quotes
-               (client_id, client_name, client_email, client_phone, client_company,
+               (user_id, client_id, client_name, client_email, client_phone, client_company,
                 status, priority, notes, total_cents)
-               VALUES (?, ?, ?, ?, ?, 'Enviado', ?, ?, ?)""",
-            (client["id"], client["name"], client["email"], client["phone"],
+               VALUES (?, ?, ?, ?, ?, ?, 'Enviado', ?, ?, ?)""",
+            (user_id, client["id"], client["name"], client["email"], client["phone"],
              client["company"], priority, notes, total_cents),
         )
         quote_id = cursor.lastrowid
@@ -83,34 +83,37 @@ def create_quote(database_path: str, client_id: int, notes: str,
         return quote_id
 
 
-def get_dashboard_data(database_path: str, recent_limit: int = 6) -> dict:
+def get_dashboard_data(database_path: str, user_id: int, recent_limit: int = 6) -> dict:
     with get_connection(database_path) as connection:
         counts = connection.execute(
             """SELECT COUNT(*) AS total,
                       COALESCE(SUM(CASE WHEN status = 'Aprovado' THEN 1 ELSE 0 END), 0) AS approved,
                       COALESCE(SUM(CASE WHEN status = 'Recusado' THEN 1 ELSE 0 END), 0) AS declined
-               FROM quotes"""
+               FROM quotes WHERE user_id = ?""",
+            (user_id,),
         ).fetchone()
         recent = connection.execute(
             """SELECT id, client_name, status, priority, total_cents, created_at
-               FROM quotes ORDER BY created_at DESC, id DESC LIMIT ?""",
-            (recent_limit,),
+               FROM quotes WHERE user_id = ?
+               ORDER BY created_at DESC, id DESC LIMIT ?""",
+            (user_id, recent_limit),
         ).fetchall()
         return {"counts": dict(counts), "recent": recent}
 
 
-def list_quotes(database_path: str):
+def list_quotes(database_path: str, user_id: int):
     with get_connection(database_path) as connection:
         return connection.execute(
             """SELECT id, client_id, client_name, status, priority, total_cents, created_at
-               FROM quotes ORDER BY created_at DESC, id DESC"""
+               FROM quotes WHERE user_id = ? ORDER BY created_at DESC, id DESC""",
+            (user_id,),
         ).fetchall()
 
 
-def get_quote(database_path: str, quote_id: int):
+def get_quote(database_path: str, user_id: int, quote_id: int):
     with get_connection(database_path) as connection:
         quote = connection.execute(
-            "SELECT * FROM quotes WHERE id = ?", (quote_id,)
+            "SELECT * FROM quotes WHERE id = ? AND user_id = ?", (quote_id, user_id)
         ).fetchone()
         if quote is None:
             return None
@@ -121,43 +124,44 @@ def get_quote(database_path: str, quote_id: int):
         return {"quote": quote, "items": items}
 
 
-def list_client_quotes(database_path: str, client_id: int):
+def list_client_quotes(database_path: str, user_id: int, client_id: int):
     with get_connection(database_path) as connection:
         client = connection.execute(
-            "SELECT id, name, email, phone, company FROM clients WHERE id = ?",
-            (client_id,),
+            "SELECT id, name, email, phone, company FROM clients WHERE id = ? AND user_id = ?",
+            (client_id, user_id),
         ).fetchone()
         if client is None:
             return None
         quotes = connection.execute(
             """SELECT id, client_id, client_name, status, priority, total_cents, created_at
-               FROM quotes WHERE client_id = ?
+               FROM quotes WHERE client_id = ? AND user_id = ?
                ORDER BY created_at DESC, id DESC""",
-            (client_id,),
+            (client_id, user_id),
         ).fetchall()
         return {"client": client, "quotes": quotes}
 
 
-def update_quote_status(database_path: str, quote_id: int, status: str) -> bool:
+def update_quote_status(database_path: str, user_id: int, quote_id: int, status: str) -> bool:
     if status not in QUOTE_STATUSES:
         return False
     with get_connection(database_path) as connection:
         cursor = connection.execute(
             """UPDATE quotes SET status = ?, updated_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
-            (status, quote_id),
+               WHERE id = ? AND user_id = ?""",
+            (status, quote_id, user_id),
         )
         return cursor.rowcount == 1
 
 
-def update_quote_priority(database_path: str, quote_id: int, priority: str) -> bool:
+def update_quote_priority(database_path: str, user_id: int, quote_id: int,
+                          priority: str) -> bool:
     """Atualiza prioridade somente para valores permitidos."""
     if priority not in QUOTE_PRIORITIES:
         return False
     with get_connection(database_path) as connection:
         cursor = connection.execute(
             """UPDATE quotes SET priority = ?, updated_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
-            (priority, quote_id),
+               WHERE id = ? AND user_id = ?""",
+            (priority, quote_id, user_id),
         )
         return cursor.rowcount == 1

@@ -1,28 +1,78 @@
-# CRM de Orçamentos e Propostas
+# Nexo CRM
 
-Aplicação local em Python/Flask, SQLite, Tailwind CSS e ReportLab. Login, clientes, catálogo, controle de orçamentos e geração de propostas PDF estão disponíveis.
+CRM de demonstração em Flask e SQLite para organizar clientes, catálogo e propostas comerciais. Cada conta mantém seus próprios registros. A interface usa templates Jinja, Tailwind CSS compilado e componentes CSS próprios; propostas são geradas em PDF.
 
-## Requisitos
+> Este repositório é um exemplo de portfólio para execução local. Não publique uma instância com dados reais sem uma revisão de implantação e privacidade.
 
-- Python 3.10 ou superior com `pip`.
-- Git instalado no sistema para acompanhar as fases. Git é um programa do sistema, não uma dependência Python.
+## Funcionalidades
 
-## Instalação e início
+- Cadastro de conta com e-mail, aceite de termos e senha com pelo menos 12 caracteres.
+- Login, logout, sessão com duração limitada, proteção CSRF e limite para tentativas de senha.
+- Clientes, produtos e serviços separados por conta.
+- Orçamentos com itens, preço calculado no servidor, histórico, status, prioridade e download PDF.
+- Migração automática que preserva o banco antigo e atribui registros legados ao administrador local já configurado.
+- Layout responsivo com acesso por teclado e suporte à preferência de movimento reduzido.
 
-No Windows, abra o PowerShell nesta pasta e execute:
+## Tecnologias
+
+- Python 3.10+, Flask, Flask-WTF, SQLite, Werkzeug e python-dotenv.
+- Jinja e JavaScript sem framework no navegador.
+- Tailwind CSS 3.4.17, compilado para `static/css/tailwind.css`.
+- ReportLab para geração de PDF.
+
+React/TypeScript não foram adicionados: a aplicação já usa renderização no servidor, e substituir o frontend não traria benefício suficiente para justificar uma segunda arquitetura e processo de build.
+
+## Instalação e execução local
+
+No Windows PowerShell, abra esta pasta e execute:
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+Copy-Item .env.example .env
 python app.py
 ```
 
-O servidor fica restrito ao próprio computador. Por padrão, o navegador abre a tela de login quando o servidor estiver pronto. Para iniciar sem abrir o navegador, altere `AUTO_OPEN_BROWSER = False` em `config.py`.
+O aplicativo escuta em `127.0.0.1` e abre `http://127.0.0.1:5000/login`. O CSS compilado está incluído no repositório, então não é necessário Node.js para executar o CRM.
 
-No primeiro uso, o sistema cria `config.py` com chave de sessão e senha de administrador aleatórias e persistentes, inicializa o banco `instance/crm.sqlite3` e grava a senha apenas como hash no banco. As credenciais iniciais são usuário `admin` e a senha exibida no terminal durante a configuração inicial, também guardada em `config.py`. Preserve essa configuração para não perder o acesso.
+Na primeira inicialização, o programa cria `config.py` local e `instance/crm.sqlite3`. O usuário administrador é `admin`; sua senha aleatória fica apenas em `config.py` e não é impressa nos logs. Mantenha esse arquivo privado. Para uma conta independente, selecione **Criar conta**.
 
-As informações da empresa em `config.py` são fictícias e podem ser editadas. Configure nome, e-mail, telefone e endereço antes de usar propostas. A opção `COMPANY_LOGO` aponta para o logotipo PNG/JPEG; se não houver arquivo válido, o PDF usa uma marca vetorial simples. `config.py`, o banco e o ambiente virtual são ignorados pelo Git.
+## Configuração
+
+Edite `.env` com valores privados antes de usar:
+
+```dotenv
+# Opcional: descomente para sobrescrever a chave privada gerada localmente.
+# SECRET_KEY=
+ADMIN_USERNAME=admin
+# Opcional: deixe comentado para gerar uma senha administrativa aleatória.
+# ADMIN_PASSWORD=
+DATABASE_PATH=instance/crm.sqlite3
+COMPANY_NAME=Nexo CRM
+APP_PORT=5000
+AUTO_OPEN_BROWSER=true
+COOKIE_SECURE=false
+```
+
+`SECRET_KEY` deve ser aleatória e mantida fora do Git. `COOKIE_SECURE` só deve ser ativada quando houver HTTPS. O arquivo `.env`, `config.py` e o banco local são ignorados pelo Git; `.env.example` não contém segredos e deixa as credenciais opcionais comentadas para evitar senhas de exemplo em uso.
+
+O schema é aplicado automaticamente a cada inicialização. Migrações adicionam proprietário, snapshots, prioridade, aceite dos termos, limite de tentativas e tokens de sessão sem apagar registros. Os dados antigos sem proprietário ficam com o administrador local já configurado; novas contas não recebem dados anteriores.
+
+## CSS do Tailwind
+
+Node.js é necessário somente para alterar templates e recompilar o CSS:
+
+```powershell
+npm ci
+npm run build:css
+```
+
+Para desenvolvimento com recompilação automática:
+
+```powershell
+npm run watch:css
+```
 
 ## Testes
 
@@ -30,17 +80,23 @@ As informações da empresa em `config.py` são fictícias e podem ser editadas.
 python -m unittest discover -s tests -v
 ```
 
-## Uso
+Os testes cobrem autenticação, CSRF, migração, cadastro, permissões entre contas, páginas de detalhes, catálogo e PDF usando bancos SQLite temporários.
 
-1. Execute `python app.py` e aguarde a abertura do navegador.
-2. Entre com o usuário e a senha inicial.
-3. Use **Clientes** para cadastrar, pesquisar por nome, editar e excluir contatos. Cadastros associados a orçamentos não podem ser excluídos.
-4. Use **Produtos e serviços** para cadastrar, editar e excluir itens. Informe o preço em reais, usando vírgula ou ponto para os centavos; por exemplo, `125,50` ou `125.50`. Itens associados a orçamentos não podem ser excluídos.
-5. Em **Orçamentos**, monte uma proposta escolhendo cliente, prioridade (**Baixa**, **Média** ou **Alta**), itens e quantidades. O padrão de prioridade é **Média**; o total é recalculado pelo servidor ao salvar. O histórico fica disponível na lista de orçamentos e no cadastro de cada cliente.
-6. Abra um orçamento para atualizar o status (**Enviado**, **Aprovado** ou **Recusado**) e, quando necessário, alterar sua prioridade. A prioridade também aparece no painel e na lista de orçamentos.
-7. Na tela do orçamento, use **Gerar PDF** para baixar `orcamento-[id].pdf`, com dados da empresa e do cliente, itens, total, observações, status e prioridade.
-8. Para sair, use o botão **Sair** no cabeçalho.
+## Segurança e limitações conhecidas
 
-Para incluir dados fictícios de demonstração sem duplicar nem substituir cadastros existentes, execute `python scripts/seed_demo_data.py`. O script cria quatro clientes, seis produtos e quatro orçamentos relacionados.
+- O app vincula o servidor a `127.0.0.1`; não há suporte de produção, e-mail verificado, redefinição de senha, MFA ou backup automático.
+- Cinco falhas de login em 15 minutos bloqueiam temporariamente novas tentativas daquele endereço IP. Como é um protótipo local, a limitação é persistida em SQLite e não substitui uma solução distribuída para servidor público.
+- Um token rotativo no banco invalida sessões antigas quando há novo login ou logout. Cookies usam `HttpOnly` e `SameSite=Lax`; `Secure` depende de HTTPS.
+- O código usa SQL parametrizado, escape padrão do Jinja, CSRF em formulários, validação no servidor e cabeçalhos de segurança. Isso reduz riscos comuns, mas não constitui auditoria de segurança independente.
+- A tela registra aceite da política de demonstração; ela não substitui termos legais revisados para uso comercial.
+- Os exemplos do repositório são fictícios. Preserve `config.py`, `.env` e `instance/` localmente e não os anexe a issues ou commits.
 
-Encerre o servidor com `Ctrl+C` no terminal. Para preservar os dados, mantenha uma cópia da pasta `instance` e do arquivo `config.py` em local privado e seguro. A interface usa Tailwind via CDN, então a estilização requer conexão com a internet; o banco e a geração de PDF são locais.
+## Demonstração
+
+Para preencher uma base vazia com registros fictícios, execute:
+
+```powershell
+python scripts/seed_demo_data.py
+```
+
+Os registros de demonstração são adicionados somente à conta administrativa configurada. Para encerrar o servidor, pressione `Ctrl+C` no terminal.

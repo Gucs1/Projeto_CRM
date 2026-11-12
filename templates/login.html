@@ -3,65 +3,70 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f172a">
-  <title>Entrar · {{ config.COMPANY_NAME }}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="theme-color" content="#f6f3ff">
+  <meta name="description" content="Nexo CRM — clientes, serviços e propostas em um só lugar.">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <title>{% if mode == 'register' %}Criar conta{% else %}Entrar{% endif %} · Nexo CRM</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </head>
-<body class="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-12 text-slate-900 antialiased">
-  <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-    <div class="absolute -left-32 -top-40 h-96 w-96 rounded-full bg-blue-600/30 blur-3xl"></div>
-    <div class="absolute -bottom-48 -right-24 h-[32rem] w-[32rem] rounded-full bg-indigo-500/20 blur-3xl"></div>
-    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800/70 via-slate-950 to-slate-950"></div>
-  </div>
-  <main class="relative z-10 w-full max-w-md">
-    <div class="mb-8 text-center">
-      <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500 text-white shadow-lg shadow-blue-950/40">
-        <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7 3.75h7l4.25 4.5v12A.75.75 0 0 1 17.5 21h-11a.75.75 0 0 1-.75-.75V4.5A.75.75 0 0 1 6.5 3.75Z"/><path stroke-linecap="round" d="M14 4v4.5h4M8.5 13h7M8.5 16.5h7"/></svg>
-      </span>
-      <h1 class="mt-5 text-2xl font-semibold tracking-tight text-white">{{ config.COMPANY_NAME }}</h1>
-      <p class="mt-2 text-sm text-slate-400">CRM de Orçamentos e Propostas</p>
-    </div>
+<body class="auth-page">
+  <main class="auth-layout">
+    <a class="auth-brand" href="{{ url_for('auth.login') }}" aria-label="Nexo CRM">
+      <span class="auth-logo" aria-hidden="true">N</span>
+      <span><strong>Nexo CRM</strong><small>CRM de propostas</small></span>
+    </a>
 
-    <section class="rounded-3xl border border-white/60 bg-white p-7 shadow-2xl shadow-black/20 sm:p-9">
-      <div class="mb-7">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Acesso seguro</p>
-        <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">Entre na sua conta</h2>
-        <p class="mt-1 text-sm text-slate-500">Use seu usuário e senha para continuar.</p>
+    <section id="auth-card" class="auth-card" data-mode="{{ mode }}" aria-label="Acesso ao CRM">
+      <div class="auth-heading">
+        <p class="auth-eyebrow">SEU ESPAÇO COMERCIAL</p>
+        <h1>Propostas bem cuidadas.<br><span>Negócios em movimento.</span></h1>
+        <p>Organize clientes, produtos e orçamentos em um só lugar.</p>
       </div>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="mb-5 space-y-3" aria-live="polite">
-            {% for category, message in messages %}
-              <div role="alert" class="flex gap-3 rounded-xl border px-4 py-3 text-sm {{ 'border-emerald-200 bg-emerald-50 text-emerald-800' if category == 'success' else 'border-rose-200 bg-rose-50 text-rose-800' }}">
-                {% if category == 'success' %}<span aria-hidden="true">✓</span>{% else %}<span aria-hidden="true">!</span>{% endif %}
-                <p>{{ message }}</p>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
+        {% if messages %}<div class="auth-messages" aria-live="polite">
+          {% for category, message in messages %}<p role="alert" class="{{ 'success' if category == 'success' else 'error' }}">{{ message }}</p>{% endfor %}
+        </div>{% endif %}
       {% endwith %}
 
-      <form method="post" action="{{ url_for('auth.login') }}" class="space-y-5">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div>
-          <label for="username" class="mb-2 block text-sm font-medium text-slate-700">Usuário</label>
-          <input id="username" name="username" type="text" autocomplete="username" required autofocus maxlength="80" class="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="Seu usuário">
+      <nav class="auth-switch" role="tablist" aria-label="Entrar ou criar conta">
+        <a href="{{ url_for('auth.login') }}" id="auth-tab-login" data-auth-switch="login" role="tab" aria-controls="auth-panel-login" aria-selected="{{ 'true' if mode == 'login' else 'false' }}">Entrar</a>
+        <a href="{{ url_for('auth.register') }}" id="auth-tab-register" data-auth-switch="register" role="tab" aria-controls="auth-panel-register" aria-selected="{{ 'true' if mode == 'register' else 'false' }}">Criar conta</a>
+        <span class="auth-switch-thumb" aria-hidden="true"></span>
+      </nav>
+
+      <div class="auth-window">
+        <div class="auth-track">
+          <section class="auth-panel" id="auth-panel-login" data-auth-panel="login" role="tabpanel" aria-labelledby="auth-tab-login" aria-label="Entrar na conta">
+            <h2>Bem-vindo de volta</h2>
+            <p class="auth-subtitle">Entre para continuar acompanhando suas propostas.</p>
+            <form method="post" action="{{ url_for('auth.login') }}" class="auth-form" data-loading>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="auth-field"><span>E-mail ou usuário</span><span class="auth-input-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.75 6.75h16.5v10.5H3.75zM4 7l8 6 8-6"/></svg><input name="username" type="text" maxlength="254" autocomplete="username" required placeholder="voce@exemplo.com"></span></label>
+              <label class="auth-field"><span>Senha</span><span class="auth-input-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input name="password" type="password" maxlength="128" autocomplete="current-password" required placeholder="Sua senha"><button class="password-toggle" type="button" data-password-toggle aria-label="Mostrar senha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
+              <div class="auth-options"><label class="auth-check"><input type="checkbox" name="remember"><span>Manter conectado</span></label></div>
+              <button class="auth-submit" type="submit" data-loading-text="Entrando…">Entrar</button>
+            </form>
+          </section>
+
+          <section class="auth-panel" id="auth-panel-register" data-auth-panel="register" role="tabpanel" aria-labelledby="auth-tab-register" aria-label="Criar conta">
+            <h2>Crie seu espaço</h2>
+            <p class="auth-subtitle">Cada conta tem seus próprios clientes e propostas.</p>
+            <form method="post" action="{{ url_for('auth.register') }}" class="auth-form" data-loading>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="auth-field"><span>E-mail</span><span class="auth-input-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.75 6.75h16.5v10.5H3.75zM4 7l8 6 8-6"/></svg><input name="email" type="email" maxlength="254" autocomplete="email" value="{{ email }}" required placeholder="voce@exemplo.com"></span></label>
+              <label class="auth-field"><span>Senha <small>(mínimo 12 caracteres)</small></span><span class="auth-input-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required placeholder="Crie uma senha forte"><button class="password-toggle" type="button" data-password-toggle aria-label="Mostrar senha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
+              <label class="auth-field"><span>Confirmar senha</span><span class="auth-input-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input name="confirm_password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required placeholder="Digite a senha novamente"><button class="password-toggle" type="button" data-password-toggle aria-label="Mostrar confirmação de senha"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
+              <label class="auth-check auth-terms"><input type="checkbox" name="terms_accepted" required><span>Li e aceito os <a href="{{ url_for('auth.legal') }}" target="_blank" rel="noopener noreferrer">termos e a política de privacidade</a>.</span></label>
+              <button class="auth-submit" type="submit" data-loading-text="Criando…">Criar conta</button>
+            </form>
+          </section>
         </div>
-        <div>
-          <div class="mb-2 flex items-center justify-between">
-            <label for="password" class="block text-sm font-medium text-slate-700">Senha</label>
-          </div>
-          <input id="password" name="password" type="password" autocomplete="current-password" required class="block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="Sua senha">
-        </div>
-        <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-900/15 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/25">
-          Entrar no sistema
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12h15m-6-6 6 6-6 6"/></svg>
-        </button>
-      </form>
+      </div>
+      <p class="auth-footnote">Seus dados ficam separados por conta e armazenados neste ambiente local.</p>
     </section>
-    <p class="mt-6 text-center text-xs text-slate-500">Aplicação local · Seus dados permanecem neste computador</p>
+    <p class="auth-copyright">Nexo CRM · Aplicação de demonstração</p>
   </main>
 </body>
 </html>

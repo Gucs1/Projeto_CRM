@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import secrets
 import string
 import threading
@@ -9,10 +10,12 @@ import time
 import urllib.error
 import urllib.request
 import webbrowser
+from datetime import timedelta
 from pathlib import Path
 
-from flask import Flask, g, session
+from flask import Flask, g, render_template, request, session
 from flask_wtf.csrf import CSRFProtect
+from dotenv import load_dotenv
 
 from db import initialize_database
 from models.user import get_user_by_id
@@ -20,6 +23,15 @@ from models.user import get_user_by_id
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config.py"
 csrf = CSRFProtect()
+
+
+class PrivacyAwareFlask(Flask):
+    """Evita que Flask escreva mensagens arbitrárias de exceção nos logs."""
+
+    def log_exception(self, exc_info) -> None:
+        # A exceção será registrada pelo handler com rota e tipo, sem valores
+        # submetidos em formulários que podem conter dados pessoais.
+        return None
 
 
 def ensure_local_config() -> None:
@@ -33,7 +45,7 @@ SECRET_KEY = {secrets.token_urlsafe(48)!r}
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = {admin_password!r}
 DATABASE_PATH = "instance/crm.sqlite3"
-COMPANY_NAME = "Mainhardt Soluções de Exemplo"
+COMPANY_NAME = "Nexo CRM"
 COMPANY_EMAIL = "contato@exemplo.local"
 COMPANY_PHONE = "(11) 5555-0100"
 COMPANY_ADDRESS = "Rua das Empresas, 100 - São Paulo, SP"
@@ -48,11 +60,11 @@ APP_PORT = 5000
         pass
     print("Configuração inicial criada em config.py.")
     print("Usuário administrador: admin")
-    print(f"Senha inicial: {admin_password}")
-    print("Guarde a senha. Ela será preservada na configuração local.")
+    print("Consulte a senha inicial no arquivo privado config.py.")
 
 
 def load_config():
+    load_dotenv(BASE_DIR / ".env", override=False)
     ensure_local_config()
     spec = importlib.util.spec_from_file_location("local_config", CONFIG_PATH)
     if spec is None or spec.loader is None:
@@ -62,26 +74,36 @@ def load_config():
     return module
 
 
+def env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    return default if value is None else value.strip().casefold() in {"1", "true", "yes", "on"}
+
+
 def create_app(test_config: dict | None = None) -> Flask:
     """Cria a aplicação, aplica o schema e configura a sessão e CSRF."""
     local_config = load_config()
-    database_path = (BASE_DIR / local_config.DATABASE_PATH).resolve()
+    database_value = os.getenv("DATABASE_PATH", local_config.DATABASE_PATH)
+    database_path = (BASE_DIR / database_value).resolve()
+    cookie_secure = env_bool("COOKIE_SECURE", False)
 
-    app = Flask(__name__)
+    app = PrivacyAwareFlask(__name__)
     app.config.update(
-        SECRET_KEY=local_config.SECRET_KEY,
+        SECRET_KEY=os.getenv("SECRET_KEY", local_config.SECRET_KEY),
         DATABASE_PATH=str(database_path),
         WTF_CSRF_ENABLED=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=False,  # O servidor local usa HTTP em loopback.
-        COMPANY_NAME=local_config.COMPANY_NAME,
-        COMPANY_EMAIL=local_config.COMPANY_EMAIL,
-        COMPANY_PHONE=local_config.COMPANY_PHONE,
-        COMPANY_ADDRESS=local_config.COMPANY_ADDRESS,
-        COMPANY_LOGO=str((BASE_DIR / getattr(local_config, "COMPANY_LOGO", "static/img/logo.png")).resolve()),
-        AUTO_OPEN_BROWSER=getattr(local_config, "AUTO_OPEN_BROWSER", True),
-        APP_PORT=int(getattr(local_config, "APP_PORT", 5000)),
+        SESSION_COOKIE_SECURE=cookie_secure,
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
+        SESSION_REFRESH_EACH_REQUEST=False,
+        MAX_CONTENT_LENGTH=2 * 1024 * 1024,
+        COMPANY_NAME=os.getenv("COMPANY_NAME", "Nexo CRM"),
+        COMPANY_EMAIL=os.getenv("COMPANY_EMAIL", local_config.COMPANY_EMAIL),
+        COMPANY_PHONE=os.getenv("COMPANY_PHONE", local_config.COMPANY_PHONE),
+        COMPANY_ADDRESS=os.getenv("COMPANY_ADDRESS", local_config.COMPANY_ADDRESS),
+        COMPANY_LOGO=str((BASE_DIR / os.getenv("COMPANY_LOGO", getattr(local_config, "COMPANY_LOGO", "static/img/logo.png"))).resolve()),
+        AUTO_OPEN_BROWSER=env_bool("AUTO_OPEN_BROWSER", getattr(local_config, "AUTO_OPEN_BROWSER", True)),
+        APP_PORT=int(os.getenv("APP_PORT", getattr(local_config, "APP_PORT", 5000))),
     )
     if test_config:
         app.config.update(test_config)
@@ -89,8 +111,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     initialize_database(
         app.config["DATABASE_PATH"],
         BASE_DIR / "schema.sql",
-        local_config.ADMIN_USERNAME,
-        local_config.ADMIN_PASSWORD,
+        os.getenv("ADMIN_USERNAME", local_config.ADMIN_USERNAME),
+        os.getenv("ADMIN_PASSWORD", local_config.ADMIN_PASSWORD),
     )
     csrf.init_app(app)
 
@@ -110,14 +132,42 @@ def create_app(test_config: dict | None = None) -> Flask:
     def load_logged_in_user() -> None:
         user_id = session.get("user_id")
         g.current_user = (
-            get_user_by_id(app.config["DATABASE_PATH"], user_id)
-            if user_id is not None
+            get_user_by_id(
+                app.config["DATABASE_PATH"], user_id, session.get("session_token")
+            )
+            if user_id is not None and session.get("session_token")
             else None
         )
 
     @app.context_processor
     def inject_template_values() -> dict:
         return {"current_user": g.get("current_user")}
+
+    @app.after_request
+    def add_security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; font-src 'self'; "
+            "style-src 'self'; script-src 'self'; object-src 'none'; "
+            "base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+        )
+        if app.config["SESSION_COOKIE_SECURE"]:
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return response
+
+    @app.errorhandler(500)
+    def internal_server_error(error):
+        original_error = getattr(error, "original_exception", None)
+        app.logger.error(
+            "Falha interna em %s (%s)",
+            request.path,
+            type(original_error or error).__name__,
+        )
+        return render_template("errors/500.html"), 500
 
     @app.template_filter("brl")
     def format_brl(cents: int) -> str:

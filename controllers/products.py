@@ -2,7 +2,7 @@
 from decimal import Decimal, InvalidOperation
 import re
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for, abort
+from flask import Blueprint, current_app, flash, g, redirect, render_template, request, url_for, abort
 
 from controllers.auth import login_required
 from models.product import create_product, delete_product, get_product, list_products, update_product
@@ -66,7 +66,7 @@ def price_for_form(cents: int) -> str:
 @products_bp.get("")
 @login_required
 def index():
-    products = list_products(current_app.config["DATABASE_PATH"])
+    products = list_products(current_app.config["DATABASE_PATH"], g.current_user["id"])
     return render_template("products/list.html", products=products)
 
 
@@ -74,23 +74,26 @@ def index():
 @login_required
 def create():
     product = {"name": "", "description": "", "unit_price": ""}
+    errors = {}
     if request.method == "POST":
         values, errors = validate_product_form(request.form)
         product = {**values, "unit_price": request.form.get("unit_price", "").strip()}
         if errors:
             for message in errors.values():
                 flash(message, "error")
-            return render_template("products/form.html", product=product, editing=False), 422
-        create_product(current_app.config["DATABASE_PATH"], values)
+            return render_template(
+                "products/form.html", product=product, editing=False, errors=errors
+            ), 422
+        create_product(current_app.config["DATABASE_PATH"], g.current_user["id"], values)
         flash("Produto ou serviço cadastrado com sucesso.", "success")
         return redirect(url_for("products.index"))
-    return render_template("products/form.html", product=product, editing=False)
+    return render_template("products/form.html", product=product, editing=False, errors=errors)
 
 
 @products_bp.route("/<int:product_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit(product_id: int):
-    product = get_product(current_app.config["DATABASE_PATH"], product_id)
+    product = get_product(current_app.config["DATABASE_PATH"], g.current_user["id"], product_id)
     if product is None:
         abort(404)
     if request.method == "POST":
@@ -99,21 +102,24 @@ def edit(product_id: int):
         if errors:
             for message in errors.values():
                 flash(message, "error")
-            return render_template("products/form.html", product=form_product, editing=True), 422
-        update_product(current_app.config["DATABASE_PATH"], product_id, values)
+            return render_template(
+                "products/form.html", product=form_product, editing=True, errors=errors
+            ), 422
+        update_product(current_app.config["DATABASE_PATH"], g.current_user["id"], product_id, values)
         flash("Produto ou serviço atualizado.", "success")
         return redirect(url_for("products.index"))
     return render_template(
         "products/form.html",
         product={**dict(product), "unit_price": price_for_form(product["unit_price_cents"])},
         editing=True,
+        errors={},
     )
 
 
 @products_bp.post("/<int:product_id>/delete")
 @login_required
 def delete(product_id: int):
-    result = delete_product(current_app.config["DATABASE_PATH"], product_id)
+    result = delete_product(current_app.config["DATABASE_PATH"], g.current_user["id"], product_id)
     if result == "deleted":
         flash("Produto ou serviço excluído.", "success")
     elif result == "linked":

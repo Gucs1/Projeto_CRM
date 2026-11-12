@@ -18,6 +18,10 @@ class CatalogCrudTests(unittest.TestCase):
             "DATABASE_PATH": self.database_path,
             "SECRET_KEY": "catalog-test-secret",
         })
+        with get_connection(self.database_path) as connection:
+            self.user_id = connection.execute(
+                "SELECT id FROM users WHERE username = ?", (self.local_config.ADMIN_USERNAME,)
+            ).fetchone()["id"]
         self.client = self.app.test_client()
         login_page = self.client.get("/login")
         self.client.post("/login", data={
@@ -53,9 +57,9 @@ class CatalogCrudTests(unittest.TestCase):
     def create_client(self, **values) -> int:
         with get_connection(self.database_path) as connection:
             cursor = connection.execute(
-                """INSERT INTO clients (name, email, phone, company, notes)
-                   VALUES (:name, :email, :phone, :company, :notes)""",
-                self.client_values(**values),
+                """INSERT INTO clients (user_id, name, email, phone, company, notes)
+                   VALUES (:user_id, :name, :email, :phone, :company, :notes)""",
+                {**self.client_values(**values), "user_id": self.user_id},
             )
             return cursor.lastrowid
 
@@ -71,9 +75,9 @@ class CatalogCrudTests(unittest.TestCase):
     def create_product(self, name="Consultoria", price_cents=123456) -> int:
         with get_connection(self.database_path) as connection:
             cursor = connection.execute(
-                """INSERT INTO products (name, description, unit_price_cents)
-                   VALUES (?, ?, ?)""",
-                (name, "Acompanhamento mensal", price_cents),
+                """INSERT INTO products (user_id, name, description, unit_price_cents)
+                   VALUES (?, ?, ?, ?)""",
+                (self.user_id, name, "Acompanhamento mensal", price_cents),
             )
             return cursor.lastrowid
 
@@ -93,8 +97,8 @@ class CatalogCrudTests(unittest.TestCase):
 
         with get_connection(self.database_path) as connection:
             connection.execute(
-                "INSERT INTO clients (name, email) VALUES (?, ?)",
-                ("Carlos Dias", "carlos@example.com"),
+                "INSERT INTO clients (user_id, name, email) VALUES (?, ?, ?)",
+                (self.user_id, "Carlos Dias", "carlos@example.com"),
             )
         response = self.client.get("/clients?q=maria")
         body = response.get_data(as_text=True)
@@ -103,8 +107,8 @@ class CatalogCrudTests(unittest.TestCase):
 
         with get_connection(self.database_path) as connection:
             connection.executemany(
-                "INSERT INTO clients (name) VALUES (?)",
-                [("100% Projetos",), ("1000 Projetos",)],
+                "INSERT INTO clients (user_id, name) VALUES (?, ?)",
+                [(self.user_id, "100% Projetos"), (self.user_id, "1000 Projetos")],
             )
         escaped_search = self.client.get("/clients", query_string={"q": "%"})
         escaped_body = escaped_search.get_data(as_text=True)
@@ -131,6 +135,8 @@ class CatalogCrudTests(unittest.TestCase):
         })
         self.assertEqual(response.status_code, 422)
         self.assertIn("Informe o nome do cliente", response.get_data(as_text=True))
+        self.assertIn('aria-invalid="true"', response.get_data(as_text=True))
+        self.assertIn('id="name-error"', response.get_data(as_text=True))
 
         form = self.client.get("/clients/new")
         response = self.client.post("/clients/new", data={
@@ -153,7 +159,10 @@ class CatalogCrudTests(unittest.TestCase):
         client_id = self.create_client()
         self.assertEqual(self.client.post(f"/clients/{client_id}/delete").status_code, 400)
         with get_connection(self.database_path) as connection:
-            connection.execute("INSERT INTO quotes (client_id) VALUES (?)", (client_id,))
+            connection.execute(
+                "INSERT INTO quotes (user_id, client_id) VALUES (?, ?)",
+                (self.user_id, client_id),
+            )
 
         response = self.csrf_post(f"/clients/{client_id}/delete", {})
         self.assertEqual(response.status_code, 302)
@@ -219,6 +228,9 @@ class CatalogCrudTests(unittest.TestCase):
             "csrf_token": self.csrf_token(form),
         })
         self.assertEqual(response.status_code, 422)
+        body = response.get_data(as_text=True)
+        self.assertIn('id="unit-price-error"', body)
+        self.assertIn('aria-describedby="unit-price-error"', body)
 
         response = self.csrf_post(f"/products/{product_id}/delete", {})
         self.assertEqual(response.status_code, 302)
@@ -232,8 +244,8 @@ class CatalogCrudTests(unittest.TestCase):
         client_id = self.create_client()
         with get_connection(self.database_path) as connection:
             quote_id = connection.execute(
-                "INSERT INTO quotes (client_id, total_cents) VALUES (?, ?)",
-                (client_id, 123456),
+                "INSERT INTO quotes (user_id, client_id, total_cents) VALUES (?, ?, ?)",
+                (self.user_id, client_id, 123456),
             ).lastrowid
             connection.execute(
                 """INSERT INTO quote_items

@@ -18,4 +18,10 @@
 
 ## Prioridade de oportunidades
 
+## Contas e segurança
+
+- Cadastro, validação e login ficam em `controllers/auth.py` e `models/user.py`; mantenha CSRF e validação também no servidor.
+- Toda consulta de clientes, produtos e orçamentos deve receber o usuário autenticado e filtrar por `user_id`, inclusive detalhe, histórico, PDF e mutações. Cubra tentativa de acesso cruzado nos testes.
+- Não vincule o servidor além de `127.0.0.1` sem uma solicitação específica e uma revisão de implantação; este exemplo não é preparado para exposição pública.
+
 - Cada orçamento/proposta é uma oportunidade comercial. A prioridade implementada aceita Baixa, Média ou Alta e usa Média como padrão; confira `docs/business-rules.md` antes de alterar essa regra.

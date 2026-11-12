@@ -8,6 +8,7 @@ from pathlib import Path
 from app import create_app, load_config
 from db import get_connection
 from models.quote import create_quote, get_dashboard_data, get_quote, update_quote_priority
+from models.user import create_user
 
 
 class QuoteFlowTests(unittest.TestCase):
@@ -20,6 +21,10 @@ class QuoteFlowTests(unittest.TestCase):
             "DATABASE_PATH": self.database_path,
             "SECRET_KEY": "quote-test-secret",
         })
+        with get_connection(self.database_path) as connection:
+            self.user_id = connection.execute(
+                "SELECT id FROM users WHERE username = ?", (self.local_config.ADMIN_USERNAME,)
+            ).fetchone()["id"]
         self.client = self.app.test_client()
         login_page = self.client.get("/login")
         self.client.post("/login", data={
@@ -51,18 +56,18 @@ class QuoteFlowTests(unittest.TestCase):
         }
         with get_connection(self.database_path) as connection:
             cursor = connection.execute(
-                """INSERT INTO clients (name, email, phone, company, notes)
-                   VALUES (:name, :email, :phone, :company, :notes)""",
-                values,
+                """INSERT INTO clients (user_id, name, email, phone, company, notes)
+                   VALUES (:user_id, :name, :email, :phone, :company, :notes)""",
+                {**values, "user_id": self.user_id},
             )
             return cursor.lastrowid
 
     def create_product(self, name="Serviço Original", price=12550, description="Descrição original") -> int:
         with get_connection(self.database_path) as connection:
             cursor = connection.execute(
-                """INSERT INTO products (name, description, unit_price_cents)
-                   VALUES (?, ?, ?)""",
-                (name, description, price),
+                """INSERT INTO products (user_id, name, description, unit_price_cents)
+                   VALUES (?, ?, ?, ?)""",
+                (self.user_id, name, description, price),
             )
             return cursor.lastrowid
 
@@ -100,7 +105,7 @@ class QuoteFlowTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         quote_id = int(response.headers["Location"].rsplit("/", 1)[-1])
 
-        result = get_quote(self.database_path, quote_id)
+        result = get_quote(self.database_path, self.user_id, quote_id)
         self.assertEqual(result["quote"]["status"], "Enviado")
         self.assertEqual(result["quote"]["priority"], "Média")
         self.assertEqual(result["quote"]["total_cents"], 25_100 + 7_500)
@@ -147,7 +152,7 @@ class QuoteFlowTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         quote_id = int(response.headers["Location"].rsplit("/", 1)[-1])
         detail_path = f"/quotes/{quote_id}"
-        self.assertEqual(get_quote(self.database_path, quote_id)["quote"]["priority"], "Alta")
+        self.assertEqual(get_quote(self.database_path, self.user_id, quote_id)["quote"]["priority"], "Alta")
 
         detail = self.client.get(detail_path).get_data(as_text=True)
         self.assertIn("Prioridade da oportunidade", detail)
@@ -163,14 +168,14 @@ class QuoteFlowTests(unittest.TestCase):
             detail_path, f"{detail_path}/priority", {"priority": "Urgente"}
         )
         self.assertEqual(invalid.status_code, 302)
-        self.assertFalse(update_quote_priority(self.database_path, quote_id, "Urgente"))
-        self.assertEqual(get_quote(self.database_path, quote_id)["quote"]["priority"], "Alta")
+        self.assertFalse(update_quote_priority(self.database_path, self.user_id, quote_id, "Urgente"))
+        self.assertEqual(get_quote(self.database_path, self.user_id, quote_id)["quote"]["priority"], "Alta")
 
         updated = self.post_with_csrf(
             detail_path, f"{detail_path}/priority", {"priority": "Baixa"}
         )
         self.assertEqual(updated.status_code, 302)
-        updated_quote = get_quote(self.database_path, quote_id)["quote"]
+        updated_quote = get_quote(self.database_path, self.user_id, quote_id)["quote"]
         self.assertEqual(updated_quote["priority"], "Baixa")
         self.assertEqual(updated_quote["status"], "Enviado")
         self.assertIn("Baixa", self.client.get(detail_path).get_data(as_text=True))
@@ -233,7 +238,7 @@ class QuoteFlowTests(unittest.TestCase):
             )
 
         with self.assertRaises(sqlite3.IntegrityError):
-            create_quote(self.database_path, client_id, "", [
+            create_quote(self.database_path, self.user_id, client_id, "", [
                 {"product_id": first_product_id, "quantity": 1},
                 {"product_id": second_product_id, "quantity": 1},
             ])
@@ -255,7 +260,7 @@ class QuoteFlowTests(unittest.TestCase):
 
         bad_status = self.post_with_csrf(detail, f"{detail}/status", {"status": "Apagado"})
         self.assertEqual(bad_status.status_code, 302)
-        self.assertEqual(get_quote(self.database_path, quote_id)["quote"]["status"], "Enviado")
+        self.assertEqual(get_quote(self.database_path, self.user_id, quote_id)["quote"]["status"], "Enviado")
 
         approved = self.post_with_csrf(detail, f"{detail}/status", {"status": "Aprovado"})
         self.assertEqual(approved.status_code, 302)
@@ -263,8 +268,9 @@ class QuoteFlowTests(unittest.TestCase):
         self.assertIn("bg-emerald-50", approved_page.get_data(as_text=True))
         with get_connection(self.database_path) as connection:
             connection.execute(
-                "INSERT INTO quotes (client_id, client_name, status, total_cents) VALUES (?, ?, ?, ?)",
-                (client_id, "Cliente de Teste", "Recusado", 100),
+                """INSERT INTO quotes (user_id, client_id, client_name, status, total_cents)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (self.user_id, client_id, "Cliente de Teste", "Recusado", 100),
             )
 
         dashboard = self.client.get("/")
@@ -272,12 +278,54 @@ class QuoteFlowTests(unittest.TestCase):
         self.assertIn("Criados", body)
         self.assertIn("Aprovados", body)
         self.assertIn("Recusados", body)
-        counts = get_dashboard_data(self.database_path)["counts"]
+        counts = get_dashboard_data(self.database_path, self.user_id)["counts"]
         self.assertEqual(counts, {"total": 2, "approved": 1, "declined": 1})
 
         declined = self.post_with_csrf(detail, f"{detail}/status", {"status": "Recusado"})
         self.assertEqual(declined.status_code, 302)
-        self.assertEqual(get_quote(self.database_path, quote_id)["quote"]["status"], "Recusado")
+        self.assertEqual(get_quote(self.database_path, self.user_id, quote_id)["quote"]["status"], "Recusado")
+
+    def test_quote_detail_handles_valid_and_unknown_ids_without_server_error(self):
+        client_id = self.create_client()
+        product_id = self.create_product()
+        response = self.post_with_csrf("/quotes/new", "/quotes/new", {
+            "client_id": str(client_id), "product_id": [str(product_id)],
+            "quantity": ["1"], "notes": "Teste do detalhe",
+        })
+        self.assertEqual(response.status_code, 302)
+        quote_id = int(response.headers["Location"].rsplit("/", 1)[-1])
+        detail = self.client.get(f"/quotes/{quote_id}")
+        self.assertEqual(detail.status_code, 200)
+        self.assertIn("Teste do detalhe", detail.get_data(as_text=True))
+        self.assertEqual(self.client.get("/quotes/999999").status_code, 404)
+
+    def test_each_account_can_only_view_its_own_quote_and_catalog(self):
+        own_client = self.create_client("Cliente do admin")
+        own_product = self.create_product("Serviço do admin")
+        quote_id = create_quote(self.database_path, self.user_id, own_client, "", [
+            {"product_id": own_product, "quantity": 1},
+        ])
+
+        second_email = "other@example.com"
+        second_password = "AnotherStrongPassword123!"
+        create_user(self.database_path, second_email, second_password, "test-version")
+        other = self.app.test_client()
+        page = other.get("/login")
+        response = other.post("/login", data={
+            "csrf_token": self.csrf_token(page), "username": second_email,
+            "password": second_password,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(other.get("/clients").status_code, 200)
+        self.assertNotIn("Cliente do admin", other.get("/clients").get_data(as_text=True))
+        self.assertNotIn("Serviço do admin", other.get("/products").get_data(as_text=True))
+        quotes_page = other.get("/quotes").get_data(as_text=True)
+        self.assertIn("0 registros", quotes_page)
+        self.assertNotIn("Cliente do admin", quotes_page)
+        self.assertEqual(other.get(f"/quotes/{quote_id}").status_code, 404)
+        self.assertEqual(other.get(f"/quotes/{quote_id}/pdf").status_code, 404)
+        self.assertEqual(other.get(f"/clients/{own_client}/edit").status_code, 404)
+        self.assertEqual(other.get(f"/products/{own_product}/edit").status_code, 404)
 
 
 if __name__ == "__main__":

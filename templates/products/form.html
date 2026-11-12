@@ -13,25 +13,28 @@
     <div class="space-y-5">
       <div>
         <label for="name" class="mb-2 block text-sm font-medium text-slate-700">Nome <span class="text-rose-600">*</span></label>
-        <input id="name" name="name" type="text" required maxlength="120" value="{{ product['name'] or '' }}" class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="Ex.: Consultoria mensal">
+        <input id="name" name="name" type="text" required maxlength="120" value="{{ product['name'] or '' }}" aria-invalid="{{ 'true' if errors.get('name') else 'false' }}" {% if errors.get('name') %}aria-describedby="name-error"{% endif %} class="w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10" placeholder="Ex.: Consultoria mensal">
+        {% if errors.get('name') %}<p id="name-error" class="field-error" role="alert">{{ errors['name'] }}</p>{% endif %}
       </div>
       <div>
         <label for="description" class="mb-2 block text-sm font-medium text-slate-700">Descrição</label>
-        <textarea id="description" name="description" rows="4" maxlength="2000" class="w-full resize-y rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="Detalhes do produto ou serviço">{{ product['description'] or '' }}</textarea>
+        <textarea id="description" name="description" rows="4" maxlength="2000" class="w-full resize-y rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10" placeholder="Detalhes do produto ou serviço">{{ product['description'] or '' }}</textarea>
+        {% if errors.get('description') %}<p id="description-error" class="field-error" role="alert">{{ errors['description'] }}</p>{% endif %}
         <p class="mt-1.5 text-xs text-slate-400">Até 2.000 caracteres.</p>
       </div>
       <div class="max-w-xs">
         <label for="unit_price" class="mb-2 block text-sm font-medium text-slate-700">Preço unitário <span class="text-rose-600">*</span></label>
         <div class="relative">
           <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-500">R$</span>
-          <input id="unit_price" name="unit_price" type="text" inputmode="decimal" required value="{{ product['unit_price'] }}" class="w-full rounded-xl border border-slate-300 py-3 pl-11 pr-3.5 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="0,00">
+          <input id="unit_price" name="unit_price" type="text" inputmode="decimal" required value="{{ product['unit_price'] }}" aria-invalid="{{ 'true' if errors.get('unit_price') else 'false' }}" {% if errors.get('unit_price') %}aria-describedby="unit-price-error"{% endif %} class="w-full rounded-xl border border-slate-300 py-3 pl-11 pr-3.5 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10" placeholder="0,00">
         </div>
         <p class="mt-1.5 text-xs text-slate-400">Use vírgula ou ponto para separar os centavos.</p>
+        {% if errors.get('unit_price') %}<p id="unit-price-error" class="field-error" role="alert">{{ errors['unit_price'] }}</p>{% endif %}
       </div>
     </div>
     <div class="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
       <a href="{{ url_for('products.index') }}" class="rounded-xl border border-slate-200 px-4 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</a>
-      <button type="submit" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">{{ 'Salvar alterações' if editing else 'Cadastrar item' }}</button>
+      <button type="submit" class="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-700">{{ 'Salvar alterações' if editing else 'Cadastrar item' }}</button>
     </div>
   </form>
 </div>

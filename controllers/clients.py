@@ -1,7 +1,7 @@
 """Cadastro, busca, edição e exclusão de clientes."""
 import re
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for, abort
+from flask import Blueprint, current_app, flash, g, redirect, render_template, request, url_for, abort
 
 from controllers.auth import login_required
 from models.client import create_client, delete_client, get_client, list_clients, update_client
@@ -30,7 +30,7 @@ def validate_client_form(form):
 @login_required
 def index():
     search = request.args.get("q", "").strip()[:120]
-    clients = list_clients(current_app.config["DATABASE_PATH"], search)
+    clients = list_clients(current_app.config["DATABASE_PATH"], g.current_user["id"], search)
     return render_template("clients/list.html", clients=clients, search=search)
 
 
@@ -38,22 +38,25 @@ def index():
 @login_required
 def create():
     values = {field: "" for field in CLIENT_LIMITS}
+    errors = {}
     if request.method == "POST":
         values, errors = validate_client_form(request.form)
         if errors:
             for message in errors.values():
                 flash(message, "error")
-            return render_template("clients/form.html", client=values, editing=False), 422
-        create_client(current_app.config["DATABASE_PATH"], values)
+            return render_template(
+                "clients/form.html", client=values, editing=False, errors=errors
+            ), 422
+        create_client(current_app.config["DATABASE_PATH"], g.current_user["id"], values)
         flash("Cliente cadastrado com sucesso.", "success")
         return redirect(url_for("clients.index"))
-    return render_template("clients/form.html", client=values, editing=False)
+    return render_template("clients/form.html", client=values, editing=False, errors=errors)
 
 
 @clients_bp.route("/<int:client_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit(client_id: int):
-    client = get_client(current_app.config["DATABASE_PATH"], client_id)
+    client = get_client(current_app.config["DATABASE_PATH"], g.current_user["id"], client_id)
     if client is None:
         abort(404)
     if request.method == "POST":
@@ -61,17 +64,19 @@ def edit(client_id: int):
         if errors:
             for message in errors.values():
                 flash(message, "error")
-            return render_template("clients/form.html", client=values, editing=True), 422
-        update_client(current_app.config["DATABASE_PATH"], client_id, values)
+            return render_template(
+                "clients/form.html", client=values, editing=True, errors=errors
+            ), 422
+        update_client(current_app.config["DATABASE_PATH"], g.current_user["id"], client_id, values)
         flash("Dados do cliente atualizados.", "success")
         return redirect(url_for("clients.index"))
-    return render_template("clients/form.html", client=client, editing=True)
+    return render_template("clients/form.html", client=client, editing=True, errors={})
 
 
 @clients_bp.post("/<int:client_id>/delete")
 @login_required
 def delete(client_id: int):
-    result = delete_client(current_app.config["DATABASE_PATH"], client_id)
+    result = delete_client(current_app.config["DATABASE_PATH"], g.current_user["id"], client_id)
     if result == "deleted":
         flash("Cliente excluído.", "success")
     elif result == "linked":

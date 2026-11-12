@@ -20,6 +20,10 @@ class QuotePdfTests(unittest.TestCase):
             "DATABASE_PATH": self.database_path,
             "SECRET_KEY": "pdf-test-session-secret",
         })
+        with get_connection(self.database_path) as connection:
+            self.user_id = connection.execute(
+                "SELECT id FROM users WHERE username = ?", (self.config.ADMIN_USERNAME,)
+            ).fetchone()["id"]
         self.client = self.app.test_client()
         login_page = self.client.get("/login")
         self.client.post("/login", data={
@@ -44,17 +48,18 @@ class QuotePdfTests(unittest.TestCase):
     def create_quote(self, *, description="Serviço de demonstração", notes="", priority="Média"):
         with get_connection(self.database_path) as connection:
             client_id = connection.execute(
-                """INSERT INTO clients (name, email, phone, company)
-                   VALUES (?, ?, ?, ?)""",
-                ("Cliente PDF", "cliente@example.test", "(11) 90000-0000", "Empresa PDF"),
+                """INSERT INTO clients (user_id, name, email, phone, company)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (self.user_id, "Cliente PDF", "cliente@example.test", "(11) 90000-0000", "Empresa PDF"),
             ).lastrowid
             product_id = connection.execute(
-                """INSERT INTO products (name, description, unit_price_cents)
-                   VALUES (?, ?, ?)""",
-                ("Serviço PDF", description, 15678),
+                """INSERT INTO products (user_id, name, description, unit_price_cents)
+                   VALUES (?, ?, ?, ?)""",
+                (self.user_id, "Serviço PDF", description, 15678),
             ).lastrowid
         quote_id = create_quote(
             self.database_path,
+            self.user_id,
             client_id,
             notes,
             [{"product_id": product_id, "quantity": 2}],
@@ -85,7 +90,7 @@ class QuotePdfTests(unittest.TestCase):
 
     def test_pdf_fits_one_page_and_includes_replaceable_logo(self):
         quote_id = self.create_quote()
-        result = get_quote(self.database_path, quote_id)
+        result = get_quote(self.database_path, self.user_id, quote_id)
         logo_path = Path(self.temp_dir.name) / "logo.png"
         from PIL import Image
         Image.new("RGB", (360, 160), color=(37, 99, 235)).save(logo_path)
@@ -103,7 +108,7 @@ class QuotePdfTests(unittest.TestCase):
 
     def test_pdf_renders_the_selected_priority_tag(self):
         quote_id = self.create_quote(priority="Alta")
-        result = get_quote(self.database_path, quote_id)
+        result = get_quote(self.database_path, self.user_id, quote_id)
         rendered_priorities = []
         original_draw = PriorityTag.draw
 
@@ -124,7 +129,7 @@ class QuotePdfTests(unittest.TestCase):
         long_description = "Detalhe técnico de instalação e acompanhamento. " * 35
         long_notes = "Condições especiais, prazos e informações complementares. " * 35
         quote_id = self.create_quote(description=long_description, notes=long_notes)
-        result = get_quote(self.database_path, quote_id)
+        result = get_quote(self.database_path, self.user_id, quote_id)
         pdf_bytes = generate_quote_pdf(
             result["quote"],
             result["items"],
