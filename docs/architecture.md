@@ -24,7 +24,7 @@ Aplicação web local de processo único: Flask atende a interface no endereço 
 
 ## Fluxo comercial atual
 
-Cliente e itens do catálogo são selecionados ao criar um orçamento. O modelo lê os preços vigentes, calcula o total no servidor e guarda snapshots do cliente e dos itens, preservando o que foi proposto mesmo após alterações no cadastro. Status possíveis: Enviado, Aprovado e Recusado. A rota autenticada de PDF usa os snapshots do orçamento.
+Cliente, prioridade e itens do catálogo são selecionados ao criar um orçamento. O modelo valida prioridade e itens, lê os preços vigentes, calcula o total no servidor e guarda snapshots do cliente e dos itens, preservando o que foi proposto mesmo após alterações no cadastro. A prioridade também pode ser alterada na página de detalhes. Status possíveis: Enviado, Aprovado e Recusado. A rota autenticada de PDF usa os snapshots e a prioridade do orçamento.
 
 ## Comandos locais
 

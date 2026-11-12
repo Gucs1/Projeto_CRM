@@ -5,11 +5,16 @@ MAX_SQLITE_INTEGER = 9_223_372_036_854_775_807
 MAX_QUOTE_ITEMS = 50
 MAX_ITEM_QUANTITY = 1_000_000
 QUOTE_STATUSES = ("Enviado", "Aprovado", "Recusado")
+QUOTE_PRIORITIES = ("Baixa", "Média", "Alta")
+DEFAULT_QUOTE_PRIORITY = "Média"
 
 
 def create_quote(database_path: str, client_id: int, notes: str,
-                 requested_items: list[dict]) -> int:
+                 requested_items: list[dict],
+                 priority: str = DEFAULT_QUOTE_PRIORITY) -> int:
     """Cria orçamento e itens em uma transação usando os preços do catálogo."""
+    if priority not in QUOTE_PRIORITIES:
+        raise ValueError("Selecione uma prioridade válida.")
     if not requested_items:
         raise ValueError("Adicione pelo menos um produto ou serviço.")
     if len(requested_items) > MAX_QUOTE_ITEMS:
@@ -58,10 +63,10 @@ def create_quote(database_path: str, client_id: int, notes: str,
         cursor = connection.execute(
             """INSERT INTO quotes
                (client_id, client_name, client_email, client_phone, client_company,
-                status, notes, total_cents)
-               VALUES (?, ?, ?, ?, ?, 'Enviado', ?, ?)""",
+                status, priority, notes, total_cents)
+               VALUES (?, ?, ?, ?, ?, 'Enviado', ?, ?, ?)""",
             (client["id"], client["name"], client["email"], client["phone"],
-             client["company"], notes, total_cents),
+             client["company"], priority, notes, total_cents),
         )
         quote_id = cursor.lastrowid
         connection.executemany(
@@ -87,7 +92,7 @@ def get_dashboard_data(database_path: str, recent_limit: int = 6) -> dict:
                FROM quotes"""
         ).fetchone()
         recent = connection.execute(
-            """SELECT id, client_name, status, total_cents, created_at
+            """SELECT id, client_name, status, priority, total_cents, created_at
                FROM quotes ORDER BY created_at DESC, id DESC LIMIT ?""",
             (recent_limit,),
         ).fetchall()
@@ -97,7 +102,7 @@ def get_dashboard_data(database_path: str, recent_limit: int = 6) -> dict:
 def list_quotes(database_path: str):
     with get_connection(database_path) as connection:
         return connection.execute(
-            """SELECT id, client_id, client_name, status, total_cents, created_at
+            """SELECT id, client_id, client_name, status, priority, total_cents, created_at
                FROM quotes ORDER BY created_at DESC, id DESC"""
         ).fetchall()
 
@@ -125,7 +130,7 @@ def list_client_quotes(database_path: str, client_id: int):
         if client is None:
             return None
         quotes = connection.execute(
-            """SELECT id, client_id, client_name, status, total_cents, created_at
+            """SELECT id, client_id, client_name, status, priority, total_cents, created_at
                FROM quotes WHERE client_id = ?
                ORDER BY created_at DESC, id DESC""",
             (client_id,),
@@ -141,5 +146,18 @@ def update_quote_status(database_path: str, quote_id: int, status: str) -> bool:
             """UPDATE quotes SET status = ?, updated_at = CURRENT_TIMESTAMP
                WHERE id = ?""",
             (status, quote_id),
+        )
+        return cursor.rowcount == 1
+
+
+def update_quote_priority(database_path: str, quote_id: int, priority: str) -> bool:
+    """Atualiza prioridade somente para valores permitidos."""
+    if priority not in QUOTE_PRIORITIES:
+        return False
+    with get_connection(database_path) as connection:
+        cursor = connection.execute(
+            """UPDATE quotes SET priority = ?, updated_at = CURRENT_TIMESTAMP
+               WHERE id = ?""",
+            (priority, quote_id),
         )
         return cursor.rowcount == 1

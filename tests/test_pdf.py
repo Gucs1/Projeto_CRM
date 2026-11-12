@@ -7,7 +7,7 @@ from pathlib import Path
 from app import create_app, load_config
 from db import get_connection
 from models.quote import create_quote, get_quote
-from pdf.generator import generate_quote_pdf
+from pdf.generator import PriorityTag, generate_quote_pdf
 
 
 class QuotePdfTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class QuotePdfTests(unittest.TestCase):
             raise AssertionError("Token CSRF não encontrado")
         return match.group(1)
 
-    def create_quote(self, *, description="Serviço de demonstração", notes=""):
+    def create_quote(self, *, description="Serviço de demonstração", notes="", priority="Média"):
         with get_connection(self.database_path) as connection:
             client_id = connection.execute(
                 """INSERT INTO clients (name, email, phone, company)
@@ -58,6 +58,7 @@ class QuotePdfTests(unittest.TestCase):
             client_id,
             notes,
             [{"product_id": product_id, "quantity": 2}],
+            priority,
         )
         return quote_id
 
@@ -99,6 +100,25 @@ class QuotePdfTests(unittest.TestCase):
         pages = re.findall(rb"/Type\s*/Page\b", pdf_bytes)
         self.assertEqual(len(pages), 1)
         self.assertTrue(pdf_bytes.startswith(b"%PDF-"))
+
+    def test_pdf_renders_the_selected_priority_tag(self):
+        quote_id = self.create_quote(priority="Alta")
+        result = get_quote(self.database_path, quote_id)
+        rendered_priorities = []
+        original_draw = PriorityTag.draw
+
+        def capture_draw(tag):
+            rendered_priorities.append(tag.priority)
+            original_draw(tag)
+
+        from unittest.mock import patch
+        with patch.object(PriorityTag, "draw", capture_draw):
+            pdf_bytes = generate_quote_pdf(
+                result["quote"], result["items"], {"name": "Empresa Exemplo"}
+            )
+
+        self.assertTrue(pdf_bytes.startswith(b"%PDF-"))
+        self.assertEqual(rendered_priorities, ["Alta"])
 
     def test_long_description_and_notes_flow_across_multiple_pages(self):
         long_description = "Detalhe técnico de instalação e acompanhamento. " * 35

@@ -31,6 +31,7 @@ def initialize_database(database_path: str | Path, schema_path: str | Path,
     with get_connection(database_path) as connection:
         connection.executescript(schema)
         migrate_quote_client_snapshots(connection)
+        migrate_quote_priority(connection)
         existing = connection.execute(
             "SELECT id FROM users WHERE username = ?", (admin_username,)
         ).fetchone()
@@ -63,3 +64,16 @@ def migrate_quote_client_snapshots(connection: sqlite3.Connection) -> None:
                         WHERE clients.id = quotes.client_id
                     ), '')"""
             )
+
+
+def migrate_quote_priority(connection: sqlite3.Connection) -> None:
+    """Adiciona prioridade média aos orçamentos existentes sem alterar outros dados."""
+    columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(quotes)")
+    }
+    if "priority" not in columns:
+        connection.execute(
+            """ALTER TABLE quotes
+               ADD COLUMN priority TEXT NOT NULL DEFAULT 'Média'
+               CHECK (priority IN ('Baixa', 'Média', 'Alta'))"""
+        )

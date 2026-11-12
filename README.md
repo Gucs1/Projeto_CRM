@@ -36,9 +36,9 @@ python -m unittest discover -s tests -v
 2. Entre com o usuário e a senha inicial.
 3. Use **Clientes** para cadastrar, pesquisar por nome, editar e excluir contatos. Cadastros associados a orçamentos não podem ser excluídos.
 4. Use **Produtos e serviços** para cadastrar, editar e excluir itens. Informe o preço em reais, usando vírgula ou ponto para os centavos; por exemplo, `125,50` ou `125.50`. Itens associados a orçamentos não podem ser excluídos.
-5. Em **Orçamentos**, monte uma proposta escolhendo cliente, itens e quantidades. O total exibido é atualizado na tela e recalculado pelo servidor ao salvar. O histórico fica disponível na lista de orçamentos e no cadastro de cada cliente.
-6. Abra um orçamento para atualizar o status para **Enviado**, **Aprovado** ou **Recusado**.
-7. Na tela do orçamento, use **Gerar PDF** para baixar `orcamento-[id].pdf`, com dados da empresa e do cliente, itens, total, observações e status.
+5. Em **Orçamentos**, monte uma proposta escolhendo cliente, prioridade (**Baixa**, **Média** ou **Alta**), itens e quantidades. O padrão de prioridade é **Média**; o total é recalculado pelo servidor ao salvar. O histórico fica disponível na lista de orçamentos e no cadastro de cada cliente.
+6. Abra um orçamento para atualizar o status (**Enviado**, **Aprovado** ou **Recusado**) e, quando necessário, alterar sua prioridade. A prioridade também aparece no painel e na lista de orçamentos.
+7. Na tela do orçamento, use **Gerar PDF** para baixar `orcamento-[id].pdf`, com dados da empresa e do cliente, itens, total, observações, status e prioridade.
 8. Para sair, use o botão **Sair** no cabeçalho.
 
 Para incluir dados fictícios de demonstração sem duplicar nem substituir cadastros existentes, execute `python scripts/seed_demo_data.py`. O script cria quatro clientes, seis produtos e quatro orçamentos relacionados.

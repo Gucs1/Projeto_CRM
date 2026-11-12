@@ -10,12 +10,15 @@ from models.product import list_products
 from models.quote import (
     MAX_ITEM_QUANTITY,
     MAX_QUOTE_ITEMS,
+    DEFAULT_QUOTE_PRIORITY,
+    QUOTE_PRIORITIES,
     QUOTE_STATUSES,
     create_quote,
     get_quote,
     list_client_quotes,
     list_quotes,
     update_quote_status,
+    update_quote_priority,
 )
 from pdf.generator import generate_quote_pdf
 
@@ -28,7 +31,11 @@ def quote_form_values():
     product_ids = request.form.getlist("product_id")
     quantities = request.form.getlist("quantity")
     notes = request.form.get("notes", "").strip()
+    priority = request.form.get("priority", DEFAULT_QUOTE_PRIORITY).strip()
     errors = []
+
+    if priority not in QUOTE_PRIORITIES:
+        errors.append("Selecione uma prioridade válida.")
 
     try:
         client_id = int(selected_client_id)
@@ -71,6 +78,7 @@ def quote_form_values():
         "product_ids": product_ids[:MAX_QUOTE_ITEMS] or [""],
         "quantities": quantities[:MAX_QUOTE_ITEMS] or ["1"],
         "notes": notes,
+        "priority": priority,
         "items": items,
         "errors": errors,
     }
@@ -101,6 +109,7 @@ def create():
         "product_ids": [""],
         "quantities": ["1"],
         "notes": "",
+        "priority": DEFAULT_QUOTE_PRIORITY,
     }
     if request.method == "POST":
         values = quote_form_values()
@@ -108,7 +117,8 @@ def create():
             for message in values["errors"]:
                 flash(message, "error")
             return render_template(
-                "quotes/form.html", clients=clients, products=products, values=values
+                "quotes/form.html", clients=clients, products=products,
+                values=values, priorities=QUOTE_PRIORITIES,
             ), 422
         try:
             quote_id = create_quote(
@@ -116,16 +126,21 @@ def create():
                 values["client_id"],
                 values["notes"],
                 values["items"],
+                values["priority"],
             )
         except ValueError as exc:
             flash(str(exc), "error")
             return render_template(
-                "quotes/form.html", clients=clients, products=products, values=values
+                "quotes/form.html", clients=clients, products=products,
+                values=values, priorities=QUOTE_PRIORITIES,
             ), 422
         flash("Orçamento criado e salvo como Enviado.", "success")
         return redirect(url_for("quotes.detail", quote_id=quote_id))
 
-    return render_template("quotes/form.html", clients=clients, products=products, values=values)
+    return render_template(
+        "quotes/form.html", clients=clients, products=products,
+        values=values, priorities=QUOTE_PRIORITIES,
+    )
 
 
 @quotes_bp.get("/quotes/<int:quote_id>")
@@ -139,6 +154,7 @@ def detail(quote_id: int):
         quote=result["quote"],
         items=result["items"],
         statuses=QUOTE_STATUSES,
+        priorities=QUOTE_PRIORITIES,
     )
 
 
@@ -181,6 +197,21 @@ def status(quote_id: int):
         abort(404)
     else:
         flash("Status do orçamento atualizado.", "success")
+    return redirect(url_for("quotes.detail", quote_id=quote_id))
+
+
+@quotes_bp.post("/quotes/<int:quote_id>/priority")
+@login_required
+def priority(quote_id: int):
+    new_priority = request.form.get("priority", "")
+    if new_priority not in QUOTE_PRIORITIES:
+        flash("Selecione uma prioridade válida.", "error")
+    elif not update_quote_priority(
+        current_app.config["DATABASE_PATH"], quote_id, new_priority
+    ):
+        abort(404)
+    else:
+        flash("Prioridade da oportunidade atualizada.", "success")
     return redirect(url_for("quotes.detail", quote_id=quote_id))
 
 

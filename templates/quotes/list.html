@@ -20,14 +20,15 @@
   </div>
   {% if quotes %}
   <div class="overflow-x-auto">
-    <table class="w-full min-w-[680px] text-left text-sm">
-      <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3 font-semibold">Orçamento</th>{% if not client %}<th class="px-5 py-3 font-semibold">Cliente</th>{% endif %}<th class="px-5 py-3 font-semibold">Status</th><th class="px-5 py-3 text-right font-semibold">Total</th><th class="px-5 py-3 text-right font-semibold">Ação</th></tr></thead>
+    <table class="w-full min-w-[760px] text-left text-sm">
+      <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-5 py-3 font-semibold">Orçamento</th>{% if not client %}<th class="px-5 py-3 font-semibold">Cliente</th>{% endif %}<th class="px-5 py-3 font-semibold">Status</th><th class="px-5 py-3 font-semibold">Prioridade</th><th class="px-5 py-3 text-right font-semibold">Total</th><th class="px-5 py-3 text-right font-semibold">Ação</th></tr></thead>
       <tbody class="divide-y divide-slate-100">
         {% for quote in quotes %}
         <tr class="hover:bg-slate-50/70">
           <td class="px-5 py-4 font-semibold text-slate-900">#{{ quote['id'] }}<p class="mt-0.5 text-xs font-normal text-slate-500">{{ quote['created_at'][:10] }}</p></td>
           {% if not client %}<td class="px-5 py-4 text-slate-700">{{ quote['client_name'] }}</td>{% endif %}
           <td class="px-5 py-4">{% with status=quote['status'] %}{% include "quotes/_status_badge.html" %}{% endwith %}</td>
+          <td class="px-5 py-4">{% with priority=quote['priority'] %}{% include "quotes/_priority_badge.html" %}{% endwith %}</td>
           <td class="whitespace-nowrap px-5 py-4 text-right font-semibold text-slate-900">{{ quote['total_cents']|brl }}</td>
           <td class="px-5 py-4 text-right"><a href="{{ url_for('quotes.detail', quote_id=quote['id']) }}" class="font-semibold text-blue-700 hover:text-blue-800">Ver detalhes</a></td>
         </tr>

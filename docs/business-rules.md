@@ -11,11 +11,11 @@ Este documento registra o comportamento existente e as decisões aprovadas para 
 - Registros associados não podem ser excluídos quando a exclusão quebraria o histórico comercial.
 - Rotas de CRM exigem sessão autenticada; formulários de alteração usam proteção CSRF.
 
-## Decisão aprovada para prioridade
+## Prioridade da oportunidade (implementada)
 
 - Prioridade será um atributo do orçamento/oportunidade existente.
 - Valores permitidos: `Baixa`, `Média` e `Alta`; novos registros e registros legados recebem `Média`, exceto quando outra opção for escolhida.
 - O usuário escolhe a prioridade ao criar e pode alterá-la na página de detalhes.
 - A prioridade é visível nas telas de listagem e detalhes e também na proposta PDF.
 - A implementação deve validar os valores no servidor e preservar todos os orçamentos já cadastrados durante a migração.
-- Esta regra está documentada como decisão, mas a funcionalidade só será implementada após autorização explícita para a fase correspondente.
+- A interface usa etiquetas visuais consistentes para diferenciar os níveis; o PDF exibe prioridade junto da data e do status.

@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS quotes (
     client_company TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'Enviado'
         CHECK (status IN ('Enviado', 'Aprovado', 'Recusado')),
+    priority TEXT NOT NULL DEFAULT 'Média'
+        CHECK (priority IN ('Baixa', 'Média', 'Alta')),
     notes TEXT NOT NULL DEFAULT '',
     total_cents INTEGER NOT NULL DEFAULT 0 CHECK (total_cents >= 0),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,

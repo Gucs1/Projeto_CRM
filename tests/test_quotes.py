@@ -7,7 +7,7 @@ from pathlib import Path
 
 from app import create_app, load_config
 from db import get_connection
-from models.quote import create_quote, get_dashboard_data, get_quote
+from models.quote import create_quote, get_dashboard_data, get_quote, update_quote_priority
 
 
 class QuoteFlowTests(unittest.TestCase):
@@ -102,6 +102,7 @@ class QuoteFlowTests(unittest.TestCase):
 
         result = get_quote(self.database_path, quote_id)
         self.assertEqual(result["quote"]["status"], "Enviado")
+        self.assertEqual(result["quote"]["priority"], "Média")
         self.assertEqual(result["quote"]["total_cents"], 25_100 + 7_500)
         self.assertEqual(result["quote"]["notes"], "Validade de 15 dias")
         self.assertEqual(result["quote"]["client_name"], "Cliente de Teste")
@@ -135,6 +136,65 @@ class QuoteFlowTests(unittest.TestCase):
         self.assertEqual(history.status_code, 200)
         self.assertIn("Cliente Atualizado", history.get_data(as_text=True))
         self.assertIn(f"#{quote_id}", history.get_data(as_text=True))
+
+    def test_priority_is_created_updated_validated_and_shown_in_crm(self):
+        client_id = self.create_client()
+        product_id = self.create_product()
+        response = self.post_with_csrf("/quotes/new", "/quotes/new", {
+            "client_id": str(client_id), "product_id": [str(product_id)],
+            "quantity": ["1"], "notes": "", "priority": "Alta",
+        })
+        self.assertEqual(response.status_code, 302)
+        quote_id = int(response.headers["Location"].rsplit("/", 1)[-1])
+        detail_path = f"/quotes/{quote_id}"
+        self.assertEqual(get_quote(self.database_path, quote_id)["quote"]["priority"], "Alta")
+
+        detail = self.client.get(detail_path).get_data(as_text=True)
+        self.assertIn("Prioridade da oportunidade", detail)
+        self.assertIn("Alta", detail)
+        listing = self.client.get("/quotes").get_data(as_text=True)
+        self.assertIn("Prioridade", listing)
+        self.assertIn("Alta", listing)
+        dashboard = self.client.get("/").get_data(as_text=True)
+        self.assertIn("Prioridade", dashboard)
+        self.assertIn("Alta", dashboard)
+
+        invalid = self.post_with_csrf(
+            detail_path, f"{detail_path}/priority", {"priority": "Urgente"}
+        )
+        self.assertEqual(invalid.status_code, 302)
+        self.assertFalse(update_quote_priority(self.database_path, quote_id, "Urgente"))
+        self.assertEqual(get_quote(self.database_path, quote_id)["quote"]["priority"], "Alta")
+
+        updated = self.post_with_csrf(
+            detail_path, f"{detail_path}/priority", {"priority": "Baixa"}
+        )
+        self.assertEqual(updated.status_code, 302)
+        updated_quote = get_quote(self.database_path, quote_id)["quote"]
+        self.assertEqual(updated_quote["priority"], "Baixa")
+        self.assertEqual(updated_quote["status"], "Enviado")
+        self.assertIn("Baixa", self.client.get(detail_path).get_data(as_text=True))
+        self.assertEqual(self.client.get(f"{detail_path}/pdf").status_code, 200)
+
+        anonymous = self.app.test_client()
+        login_page = anonymous.get("/login")
+        protected = anonymous.post(f"{detail_path}/priority", data={
+            "csrf_token": self.csrf_token(login_page), "priority": "Alta",
+        })
+        self.assertEqual(protected.status_code, 302)
+        self.assertEqual(protected.headers["Location"], "/login")
+
+    def test_invalid_priority_cannot_create_quote(self):
+        client_id = self.create_client()
+        product_id = self.create_product()
+        response = self.post_with_csrf("/quotes/new", "/quotes/new", {
+            "client_id": str(client_id), "product_id": [str(product_id)],
+            "quantity": ["1"], "notes": "", "priority": "Urgente",
+        })
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("prioridade válida", response.get_data(as_text=True))
+        with get_connection(self.database_path) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM quotes").fetchone()[0], 0)
 
     def test_quantities_and_catalog_ids_are_validated_without_partial_quotes(self):
         client_id = self.create_client()

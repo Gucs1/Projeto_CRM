@@ -108,6 +108,67 @@ class DatabaseInitializationTests(unittest.TestCase):
             ).fetchone()
             self.assertEqual(tuple(quote), ("Cliente antigo", "antigo@example.com"))
 
+    def test_legacy_quotes_receive_medium_priority_and_migration_is_idempotent(self):
+        with get_connection(self.database) as connection:
+            connection.executescript("""
+                CREATE TABLE clients (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL DEFAULT '',
+                    phone TEXT NOT NULL DEFAULT '',
+                    company TEXT NOT NULL DEFAULT '',
+                    notes TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE quotes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'Enviado',
+                    notes TEXT NOT NULL DEFAULT '',
+                    total_cents INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (client_id) REFERENCES clients(id)
+                );
+                INSERT INTO clients (name) VALUES ('Cliente legado');
+                INSERT INTO quotes (client_id, status, notes, total_cents)
+                VALUES (1, 'Aprovado', 'nota preservada', 12345);
+            """)
+
+        initialize_database(self.database, self.schema, "admin", "local-secret")
+        with get_connection(self.database) as connection:
+            quote = connection.execute(
+                "SELECT id, status, notes, total_cents, priority FROM quotes WHERE id = 1"
+            ).fetchone()
+            self.assertEqual(tuple(quote), (1, "Aprovado", "nota preservada", 12345, "Média"))
+            connection.execute("UPDATE quotes SET priority = 'Alta' WHERE id = 1")
+
+        initialize_database(self.database, self.schema, "admin", "local-secret")
+        with get_connection(self.database) as connection:
+            quote = connection.execute(
+                "SELECT id, status, notes, total_cents, priority FROM quotes WHERE id = 1"
+            ).fetchone()
+            self.assertEqual(tuple(quote), (1, "Aprovado", "nota preservada", 12345, "Alta"))
+
+    def test_new_schema_defaults_priority_and_rejects_unknown_value(self):
+        initialize_database(self.database, self.schema, "admin", "local-secret")
+        with get_connection(self.database) as connection:
+            client_id = connection.execute(
+                "INSERT INTO clients (name) VALUES ('Cliente')"
+            ).lastrowid
+            quote_id = connection.execute(
+                "INSERT INTO quotes (client_id) VALUES (?)", (client_id,)
+            ).lastrowid
+            quote = connection.execute(
+                "SELECT priority FROM quotes WHERE id = ?", (quote_id,)
+            ).fetchone()
+            self.assertEqual(quote["priority"], "Média")
+            with self.assertRaises(sqlite3.IntegrityError):
+                connection.execute(
+                    "UPDATE quotes SET priority = 'Urgente' WHERE id = ?", (quote_id,)
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,6 @@
 - Valide mudanças com `python -m unittest discover -s tests -v` a partir da raiz do repositório. No Windows, use o Python do ambiente virtual se necessário: `.venv\Scripts\python.exe`.
 - Execute `git diff --check`, revise `git status` e faça commits separados conforme as fases autorizadas. Nunca use `git add .`.
 
-## Fases já acordadas
+## Prioridade de oportunidades
 
-- A próxima mudança funcional planejada é prioridade de oportunidade: Baixa, Média e Alta; padrão Média; seleção na criação e edição nos detalhes; exibição nas telas do CRM e no PDF. Só implemente após autorização explícita para essa fase.
+- Cada orçamento/proposta é uma oportunidade comercial. A prioridade implementada aceita Baixa, Média ou Alta e usa Média como padrão; confira `docs/business-rules.md` antes de alterar essa regra.

@@ -35,6 +35,11 @@ STATUS_STYLES = {
     "Aprovado": (colors.HexColor("#047857"), colors.HexColor("#D1FAE5")),
     "Recusado": (colors.HexColor("#BE123C"), colors.HexColor("#FFE4E6")),
 }
+PRIORITY_STYLES = {
+    "Baixa": (colors.HexColor("#047857"), colors.HexColor("#D1FAE5")),
+    "Média": (colors.HexColor("#B45309"), colors.HexColor("#FEF3C7")),
+    "Alta": (colors.HexColor("#BE123C"), colors.HexColor("#FFE4E6")),
+}
 
 
 def format_brl(cents: int) -> str:
@@ -81,6 +86,30 @@ class StatusTag(Flowable):
         canvas.setFillColor(self.foreground)
         canvas.setFont("Helvetica-Bold", 8)
         canvas.drawString(23, 8, self.status)
+        canvas.restoreState()
+
+
+class PriorityTag(Flowable):
+    """Prioridade legível e colorida na proposta, sem glifos especiais."""
+
+    def __init__(self, priority: str):
+        super().__init__()
+        self.priority = priority
+        self.foreground, self.background = PRIORITY_STYLES.get(
+            priority, PRIORITY_STYLES["Média"]
+        )
+        self.width = 108
+        self.height = 24
+
+    def draw(self):
+        canvas = self.canv
+        canvas.saveState()
+        canvas.setFillColor(self.background)
+        canvas.roundRect(0, 0, self.width, self.height, 8, stroke=0, fill=1)
+        canvas.setFillColor(self.foreground)
+        canvas.circle(12, self.height / 2, 3, stroke=0, fill=1)
+        canvas.setFont("Helvetica-Bold", 8)
+        canvas.drawString(20, 8, f"Prioridade {self.priority}")
         canvas.restoreState()
 
 
@@ -227,8 +256,8 @@ def generate_quote_pdf(quote, items, company: dict, logo_path: str | Path | None
     except (ValueError, TypeError):
         quote_date = str(quote["created_at"])[:10]
     metadata = Table(
-        [[Paragraph(f"Data: <b>{escape(quote_date)}</b>", styles["subtitle"]), StatusTag(quote["status"])]],
-        colWidths=[document.width - 102, 102],
+        [[Paragraph(f"Data: <b>{escape(quote_date)}</b>", styles["subtitle"]), PriorityTag(quote["priority"]), StatusTag(quote["status"])]],
+        colWidths=[document.width - 208, 110, 98],
         hAlign="LEFT",
     )
     metadata.setStyle(TableStyle([
