@@ -23,7 +23,7 @@ Esses controles reduzem riscos comuns, mas não fornecem recuperação de conta,
 - **npm audit:** verifica dependências do frontend com severidade moderada ou maior.
 - **Gitleaks CLI em container (v8.24.3):** examina o histórico Git completo em busca de segredos commitados; não depende de um intervalo calculado a partir do SHA anterior do evento.
 
-A varredura de segredos não recebe token nem requer licença: o container do Gitleaks lê o histórico já disponível no checkout e o workflow mantém somente a permissão `contents: read`.
+A varredura de segredos não recebe token nem requer licença: o container do Gitleaks lê o histórico já disponível no checkout e o workflow mantém somente a permissão `contents: read`. A configuração Git `safe.directory` é passada por variáveis de ambiente somente para o processo do scanner, pois o checkout montado no container pertence ao runner.
 
 ## 4. Achados analisados durante a implementação
 
